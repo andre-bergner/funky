@@ -17,10 +17,10 @@ private:
    std::tuple< typename std::remove_reference<Bound_args>::type... >   args_;
 
    struct curry_arguments {};
-   struct try_to_infoke_function : curry_arguments {};
+   struct try_to_invoke_function : curry_arguments {};
 
    template < typename... Args >
-   auto dispatch( try_to_infoke_function , Args&&... args ) const -> decltype( f_(args...) )
+   auto dispatch( try_to_invoke_function , Args&&... args ) const -> decltype( f_(args...) )
    {  return  f_( std::forward<Args>(args)... );  }
 
    template < typename... Args >
@@ -29,7 +29,7 @@ private:
 
    template < std::size_t... Ns , typename... Other_args >
    auto call( std::index_sequence<Ns...> , Other_args&&... other_args )
-   {  return dispatch( try_to_infoke_function{} , std::get<Ns>(args_)... , std::forward<Other_args>(other_args)... );  }
+   {  return dispatch( try_to_invoke_function{} , std::get<Ns>(args_)... , std::forward<Other_args>(other_args)... );  }
 
 public:
 
