@@ -55,6 +55,43 @@ int main()
    assert(( is_same< signature< decltype(funob_volatile) >::result_type       , int > ::value ));
    assert(( is_same< signature< decltype(funob_const_volatile) >::result_type , int > ::value ));
 
+   auto& r_funob                = funob;
+   auto& r_funob_const          = funob_const;
+   auto& r_funob_volatile       = funob_volatile;
+   auto& r_funob_const_volatile = funob_const_volatile;
+
+   assert(( is_same< signature< decltype(r_funob) >::result_type                , int > ::value ));
+   assert(( is_same< signature< decltype(r_funob_const) >::result_type          , int > ::value ));
+   assert(( is_same< signature< decltype(r_funob_volatile) >::result_type       , int > ::value ));
+   assert(( is_same< signature< decltype(r_funob_const_volatile) >::result_type , int > ::value ));
+
+
+   auto const& cr_funob                = funob;
+   auto const& cr_funob_const          = funob_const;
+   auto const& cr_funob_volatile       = funob_volatile;
+   auto const& cr_funob_const_volatile = funob_const_volatile;
+
+   assert(( is_same< signature< decltype(cr_funob) >::result_type                , int > ::value ));
+   assert(( is_same< signature< decltype(cr_funob_const) >::result_type          , int > ::value ));
+   assert(( is_same< signature< decltype(cr_funob_volatile) >::result_type       , int > ::value ));
+   assert(( is_same< signature< decltype(cr_funob_const_volatile) >::result_type , int > ::value ));
+
+
+   auto const volatile cv_funob                = funob;
+   auto const volatile cv_funob_const          = funob_const;
+   auto const volatile cv_funob_volatile       = funob_volatile;
+   auto const volatile cv_funob_const_volatile = funob_const_volatile;
+
+   assert(( is_same< signature< decltype(cv_funob) >::result_type                , int > ::value ));
+   assert(( is_same< signature< decltype(cv_funob_const) >::result_type          , int > ::value ));
+   assert(( is_same< signature< decltype(cv_funob_volatile) >::result_type       , int > ::value ));
+   assert(( is_same< signature< decltype(cv_funob_const_volatile) >::result_type , int > ::value ));
+
+   assert(( is_same< signature< decltype(std::move(funob)) >::result_type                , int > ::value ));
+   assert(( is_same< signature< decltype(std::move(funob_const)) >::result_type          , int > ::value ));
+   assert(( is_same< signature< decltype(std::move(funob_volatile)) >::result_type       , int > ::value ));
+   assert(( is_same< signature< decltype(std::move(funob_const_volatile)) >::result_type , int > ::value ));
+
 }
 
 

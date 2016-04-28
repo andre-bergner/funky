@@ -4,11 +4,12 @@
 //      --------------------------------------------------------------------------------------------
 
 #include <tuple>
+#include <type_traits>
 
 
 // the generic signature falls back on the signature of the call operator if present
 template < class C >
-struct signature : signature< decltype( &C::operator() ) >  {};
+struct signature : signature< decltype( &std::decay_t<C>::operator() ) >  {};
 
 
 // pointer to member function (incl. const & volatile ) fall back on the plain function signatures
