@@ -113,8 +113,8 @@ auto add_impl( Value1 const & v1 , Value2 const & v2 )
 
 CURRY( add , add_impl );
 
-auto sub  = curry( [](auto x , auto y) { return x-y; } );
-auto mul3 = curry( [](auto x , auto y , auto z) { return x*y*z; } );
+auto sub = curry( [](auto x , auto y) { return x-y; } );
+auto mac = curry( [](auto x , auto y , auto z) { return x + y*z; } );
 
 
 
@@ -134,8 +134,8 @@ int main()
    assert( sub(8)(3)   == 5 );
    assert( sub(8, 3)   == 5 );
 
-   assert( mul3(1)(2,3)        == 6 );
-   assert( mul3(1,2)(3)        == 6 );
-   assert( mul3(1)(2)(3)       == 6 );
-   assert( mul3()(1)()(2)()(3) == 6 );
+   assert( mac(1)(2,3)        == 7 );
+   assert( mac(1,2)(3)        == 7 );
+   assert( mac(1)(2)(3)       == 7 );
+   assert( mac()(1)()(2)()(3) == 7 );
 }
