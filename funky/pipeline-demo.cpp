@@ -6,7 +6,7 @@ int main()
    using namespace pipeline;
 
    auto for_each = [](auto&& rng){
-      return source([rng](auto&& sink){
+      return source([&rng](auto&& sink){
          for (auto const& x : rng) if (!sink(x)) return;
       });
    };
