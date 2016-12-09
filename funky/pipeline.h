@@ -128,7 +128,7 @@ namespace pipeline {
    {
       return pipe([n](auto&& a)
       {
-         return [n,a](auto&& x) mutable
+         return [n=n,a](auto&& x) mutable
          {
             if (n --> 0)  return a(x);
             return false;
@@ -160,7 +160,7 @@ namespace pipeline {
    {
       return pipe([n](auto&& a)
       {
-         return [n,a](auto&& x) mutable
+         return [n=n,a](auto&& x) mutable
          {
             if (n --> 0)   return true;
             return a(x);
