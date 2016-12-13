@@ -3,6 +3,7 @@
 #include <tuple>
 #include <functional>
 #include <type_traits>
+#include <array>
 
 
 namespace pipeline {
@@ -185,5 +186,38 @@ namespace pipeline {
          };
       });
    }
+
+
+   template <size_t GroupSize, typename Value>
+   auto group_by_n()
+   {
+      return pipe([](auto&& snk)
+      {
+         return [n=size_t{0},snk,buf=std::array<Value,GroupSize>{{}}](auto&& x) mutable
+         {
+            buf[n++] = std::forward<decltype(x)>(x);
+            if (n == GroupSize)
+            {
+               n=0;
+               return snk(buf);
+            }
+            else
+               return true;
+         };
+      });
+   }
+
+
+
+   template <typename F1, typename F2>
+   auto join( Source<F1> src1, Source<F2> src2 )
+   {
+      return source([=](auto&& snk){
+         src1.f(snk);
+         src2.f(snk);
+      });
+   }
+
+
 
 }

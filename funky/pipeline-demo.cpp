@@ -29,9 +29,27 @@ int main()
 
    std::cout << "cancelled" << std::endl;
 
-   for_each(std::initializer_list<int>{1,2,3,4,5,6,7,8,9,10,11})
-           | pipeline()
-           | sink([](auto x) { std::cout << "sink: " << x << std::endl; return true; });;
 
-   std::cout << "cancelled" << std::endl;
+
+   const auto xs1 = {1,2,3,4,5,6,7,8,9,10,11};
+   const auto x123 = {1,2,3};
+   const auto x456 = {'a','b','c'};
+
+   std::cout << "--- for_each ----------" << std::endl;
+
+   for_each(xs1)
+   | pipeline()
+   | subscribe([](auto x) { std::cout << x << std::endl; });;
+
+   std::cout << "--- join -------------" << std::endl;
+
+   join(for_each(x123),for_each(x456))
+   | subscribe([](auto x) { std::cout << x << std::endl; });;
+
+   std::cout << "--- group_by_n -------" << std::endl;
+
+   for_each(std::initializer_list<int>{1,2,3,4,5,6,7,8,9,10,11})
+   | group_by_n<2,int>()
+   | subscribe([](auto&& xs) { for (auto x:xs) std::cout << x << " "; std::cout << std::endl; });;
+
 }
