@@ -37,23 +37,45 @@
       Function f;
    };
 
+   template <typename ElementType>
+   struct tag_of;
+
+   template <typename Tag, typename F>
+   struct tag_of<Element<Tag,F>> { using type = Tag; };
+
+   template <typename ElementType>
+   using tag_of_t = typename tag_of<ElementType>::type;
+
+
+
    template <typename F> using Source = Element<source_tag,F>;
    template <typename F> using Pipe   = Element<pipe_tag,F>;
    template <typename F> using Sink   = Element<sink_tag,F>;
 
 
    template <typename F> Source<F> source( F&& f ) { return { FORWARD(f) }; }
-   template <typename F> Pipe<F> pipe( F&& f ) { return { FORWARD(f) }; }
-   template <typename F> Sink<F> sink( F&& f ) { return { FORWARD(f) }; }
+   template <typename F> Pipe<F>   pipe( F&& f )   { return { FORWARD(f) }; }
+   template <typename F> Sink<F>   sink( F&& f )   { return { FORWARD(f) }; }
 
 
 
 
-   template <typename F, typename G>
-   auto operator|( Source<F> s, Pipe<G> p )
+   template <typename SourceT, typename PipeT>
+   decltype(auto) compose( source_tag, pipe_tag, SourceT&& s, PipeT&& p )
    {
       return source([ src=s.f, p=p.f ](auto&& sink){ return src(p(sink)); });
    }
+
+
+
+   template <typename LeftElem, typename RightElem>
+   decltype(auto) operator|( LeftElem&& l, RightElem&& r )
+   {
+      return compose( tag_of_t<LeftElem>{}, tag_of_t<RightElem>{}
+                    , std::forward<LeftElem>(l), std::forward<RightElem>(r)
+                    );
+   }
+
 /*
    template <typename F, typename G>
    auto operator|( Pipe<F> l, Pipe<G> r )
