@@ -63,9 +63,18 @@
    template <typename SourceT, typename PipeT>
    decltype(auto) compose( source_tag, pipe_tag, SourceT&& s, PipeT&& p )
    {
-      return source([ src=s.f, p=p.f ](auto&& sink){ return src(p(sink)); });
+      return source([ src = CAPTURE(s), pip=CAPTURE(p) ](auto&& sink)
+      {
+         return src.value.f(pip.value.f( FORWARD(sink) ) );
+      });
    }
 
+
+   template <typename SourceT, typename SinkT>
+   decltype(auto) compose( source_tag, sink_tag, SourceT&& s, SinkT&& sk )
+   {
+      s.f(sk.f);
+   }
 
 
    template <typename LeftElem, typename RightElem>
@@ -89,23 +98,33 @@
       return sink(p.f(s.f));
    }
 */
-   template <typename F, typename G>
-   void operator|( Source<F> s, Sink<G> p )
-   {
-      s.f(p.f);
-   }
 
-   template <typename F>
-   auto merge_in( Source<F> src )
+   template <int n>
+   struct LifeTime {
+      LifeTime()                  { std::cout << "⬆ " << n << std::endl; }
+      LifeTime(LifeTime const &)  { std::cout << "⬌ " << n << std::endl; }
+      LifeTime(LifeTime&&)        { std::cout << "⬆ " << n << std::endl; }
+      ~LifeTime()                 { std::cout << "⬇ " << n << std::endl; }
+   };
+
+   template <typename SourceT>
+   auto merge_in( source_tag, SourceT&& src )
    {
-      return pipe([src=std::move(src)](auto&& snk)
+      return pipe([ src = CAPTURE(src) ](auto&& snk)
       {
-         src.f(std::ref(snk));
-         return [&snk](auto&& x) mutable
+         LifeTime<0> l;
+         src.value.f(std::ref(snk));
+         return [ snk = CAPTURE(snk), l = LifeTime<1>{} ](auto&& x) mutable
          {
-            snk(FORWARD(x));
+            snk.value(FORWARD(x));
          };
       });
+   }
+
+   template <typename SourceT>
+   decltype(auto) merge_in( SourceT&& src )
+   {
+      return merge_in( tag_of_t<SourceT>{}, std::forward<SourceT>(src) );
    }
 
    auto take( size_t n )
