@@ -8,6 +8,9 @@
 
 namespace pipeline {
 
+   #define  FORWARD(x)  std::forward<decltype(x)>(x)
+
+
    //  ---------------------------------------------------------------------------------------------
    // Reactive Pipe
    //  ---------------------------------------------------------------------------------------------
@@ -23,7 +26,7 @@ namespace pipeline {
    };
 
    template <typename F>
-   Source<F> source( F&& f ) { return { std::forward<F>(f) }; }
+   Source<F> source( F&& f ) { return { FORWARD(f) }; }
 
 
    template <typename F>
@@ -33,19 +36,19 @@ namespace pipeline {
    };
 
    template <typename F>
-   Pipe<F> pipe( F&& f ) { return { std::forward<F>(f) }; }
+   Pipe<F> pipe( F&& f ) { return { FORWARD(f) }; }
 
 
    template <typename F>
    struct Sink
    {
       template <typename A>
-      auto operator()(A&& arg) { return f(std::forward<A>(arg)); }
+      auto operator()(A&& arg) { return f(FORWARD(arg)); }
       F f;
    };
 
    template <typename F>
-   Sink<F> sink( F&& f ) { return { std::forward<F>(f) }; }
+   Sink<F> sink( F&& f ) { return { FORWARD(f) }; }
 
 
 
@@ -71,6 +74,13 @@ namespace pipeline {
    void operator|( Source<F> s, Sink<G> p )
    {
       s.f(p.f);
+   }
+
+
+   template <typename F, typename G>
+   auto operator>( Pipe<F> p, G&& sink_func )
+   {
+      return p | sink(std::forward<G>(sink_func));
    }
 
 
@@ -100,9 +110,9 @@ namespace pipeline {
    template <typename F>
    auto transform( F&& f )
    {
-      return pipe([f](auto&& a)
+      return pipe([&f](auto&& a)
       {
-         return [f,a](auto&& e) mutable
+         return [&f,a](auto&& e) mutable
          {
             return a(f(e));
          };
@@ -131,7 +141,7 @@ namespace pipeline {
       {
          return [n=n,a](auto&& x) mutable
          {
-            if (n --> 0)  return a(x);
+            if (n > 0)  { --n; return a(x); }
             return false;
          };
       });
@@ -163,7 +173,7 @@ namespace pipeline {
       {
          return [n=n,a](auto&& x) mutable
          {
-            if (n --> 0)   return true;
+            if (n > 0) { --n; return true; }
             return a(x);
          };
       });
@@ -210,14 +220,42 @@ namespace pipeline {
 
 
    template <typename F1, typename F2>
-   auto join( Source<F1> src1, Source<F2> src2 )
+   auto merge( Source<F1> src1, Source<F2> src2 )
    {
-      return source([=](auto&& snk){
-         src1.f(snk);
-         src2.f(snk);
+      return source([=](auto snk){
+         src1.f(std::ref(snk));
+         src2.f(std::ref(snk));
+      });
+   }
+
+
+   template <typename F>
+   auto merge_in( Source<F> src )
+   {
+      return pipe([src=std::move(src)](auto&& snk)
+      {
+         //src.f(snk);
+         src.f(std::ref(snk));
+         return [&snk](auto&& x) mutable
+         {
+            return snk(FORWARD(x));
+         };
       });
    }
 
 
 
+   template <typename F1, typename F2>
+   auto zip( Source<F1> src1, Source<F2> src2 )
+   {
+      return source([=](auto snk){
+         int x1_ = 0;  // src1::value_type
+         char x2_ = 0;  // src2::value_type
+
+         src1.f([&snk,&x1_,&x2_](auto x1){ x1_ = x1; return snk(std::make_tuple(x1_,x2_)); });
+         src2.f([&snk,&x1_,&x2_](auto x2){ x2_ = x2; return snk(std::make_tuple(x1_,x2_)); });
+      });
+   }
 }
+
+
