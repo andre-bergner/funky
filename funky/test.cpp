@@ -3,8 +3,6 @@
 #include <type_traits>
 #include <iostream>
 
-   #define  FORWARD(x)  std::forward<decltype(x)>(x)
-
    template <typename Type>
    using remove_rvalue_reference_t = std::conditional_t
                                      <  std::is_rvalue_reference<Type>::value
@@ -25,17 +23,27 @@
    capture_t<X&&> capture(X&& x) { return {std::forward<X>(x)}; }
 
 
+   #define  FORWARD(x)  std::forward<decltype(x)>(x)
+   #define  CAPTURE(x)  capture(FORWARD(x))
 
 
+   struct source_tag {};
+   struct pipe_tag   {};
+   struct sink_tag   {};
+
+   template <typename Tag, typename Function>
+   struct Element
+   {
+      Function f;
+   };
+
+   template <typename F> using Source = Element<source_tag,F>;
+   template <typename F> using Pipe   = Element<pipe_tag,F>;
+   template <typename F> using Sink   = Element<sink_tag,F>;
 
 
-   template <typename F> struct Source { F f; };
    template <typename F> Source<F> source( F&& f ) { return { FORWARD(f) }; }
-
-   template <typename F> struct Pipe { F f; };
    template <typename F> Pipe<F> pipe( F&& f ) { return { FORWARD(f) }; }
-
-   template <typename F> struct Sink { F f; };
    template <typename F> Sink<F> sink( F&& f ) { return { FORWARD(f) }; }
 
 
@@ -82,9 +90,9 @@
    {
       return pipe([n](auto&& a)
       {
-         return [n=n,a=](auto&& x) mutable
+         return [n=n,a=CAPTURE(a)](auto&& x) mutable
          {
-            if (n > 0) { --n; a(x); }
+            if (n > 0) { --n; a.value(FORWARD(x)); }
          };
       });
    }
@@ -92,7 +100,7 @@
    template <typename F>
    auto subscribe( F&& f )
    {
-      return sink([f](auto&& v){ f(FORWARD(v)); });
+      return sink([f=CAPTURE(f)](auto&& v){ f.value(FORWARD(v)); });
    }
 
 
@@ -118,6 +126,7 @@ int main()
 
    std::cout << "\n" << std::endl;
 
+/*
    int n = 4;
    auto&& k1 = ref_or_move(n);
    auto&& k2 = ref_or_move(4);
@@ -130,5 +139,5 @@ int main()
          std::cout << std::is_lvalue_reference<decltype(k2.value)>::value << "   " << typeid(k2.value).name() << std::endl;
       };
    }(n,4)();
-
+*/
 }
