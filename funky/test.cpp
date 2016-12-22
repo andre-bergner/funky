@@ -1,6 +1,7 @@
 #include <tuple>
 #include <functional>
 #include <type_traits>
+#include <memory>
 #include <iostream>
 
    template <typename Type>
@@ -107,14 +108,40 @@
       ~LifeTime()                 { std::cout << "⬇ " << n << std::endl; }
    };
 
+
+
+   template <typename Source1, typename Source2>
+   decltype(auto) merge( source_tag, source_tag, Source1&& src1, Source2&& src2 )
+   {
+      return source([ src1 = CAPTURE(src1), src2 = CAPTURE(src2) ]
+      (auto&& snk)
+      {
+         using sink_t = std::decay_t<decltype(snk)>;
+         auto shared_sink = [shink = std::make_shared<sink_t>(FORWARD(snk))]
+                            (auto&& x){ return (*shink)(FORWARD(x)); };
+         src1.value.f(shared_sink);
+         src2.value.f(shared_sink);
+      });
+   }
+
+   template <typename Source1, typename Source2>
+   decltype(auto) merge( Source1&& src1, Source2&& src2 )
+   {
+      return merge( tag_of_t<Source1>{}, tag_of_t<Source2>{}
+                  , std::forward<Source1>(src1), std::forward<Source2>(src2)
+                  );
+   }
+
+/*
    template <typename SourceT>
    auto merge_in( source_tag, SourceT&& src )
    {
       return pipe([ src = CAPTURE(src) ](auto&& snk)
       {
-         LifeTime<0> l;
-         src.value.f(std::ref(snk));
-         return [ snk = CAPTURE(snk), l = LifeTime<1>{} ](auto&& x) mutable
+         //LifeTime<0> l;
+         auto s = CAPTURE(snk);
+         src.value.f(std::ref(s.value));
+         return [ snk = CAPTURE(s.value), l = LifeTime<1>{} ](auto&& x) mutable
          {
             snk.value(FORWARD(x));
          };
@@ -126,11 +153,12 @@
    {
       return merge_in( tag_of_t<SourceT>{}, std::forward<SourceT>(src) );
    }
-
+*/
    auto take( size_t n )
    {
       return pipe([n](auto&& a)
       {
+         LifeTime<3> l;
          return [n=n,a=CAPTURE(a)](auto&& x) mutable
          {
             if (n > 0) { --n; a.value(FORWARD(x)); }
@@ -153,8 +181,9 @@ int main()
    auto connect1 = [&](auto&& f){ c1 = FORWARD(f); };
    auto connect2 = [&](auto&& f){ c2 = FORWARD(f); };
 
-   source(connect1)
-   | merge_in(source(connect2))
+//   source(connect1)
+//   | merge_in(source(connect2))
+   merge(source(connect1),source(connect2))
    | take(3)
    | subscribe([](auto x){ std::cout << x; });
 
