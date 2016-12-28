@@ -8,7 +8,30 @@
 
 namespace pipeline {
 
+   template <typename Type>
+   using remove_rvalue_reference_t = std::conditional_t
+                                     <  std::is_rvalue_reference<Type>::value
+                                     ,  std::remove_reference_t<Type>
+                                     ,  Type
+                                     >;
+
+   template <typename X>
+   auto ref_or_move(X&& x) -> remove_rvalue_reference_t<X&&> { return std::forward<X>(x); }
+
+   template <typename X>
+   struct capture_t
+   {
+      remove_rvalue_reference_t<X&&> value;
+   };
+
+   template <typename X>
+   capture_t<X&&> capture(X&& x) { return {std::forward<X>(x)}; }
+
+
    #define  FORWARD(x)  std::forward<decltype(x)>(x)
+   #define  CAPTURE(x)  capture(FORWARD(x))
+
+
 
 
    //  ---------------------------------------------------------------------------------------------
@@ -19,62 +42,85 @@ namespace pipeline {
    //  pipe<F>:    bool(sink<T>) -> bool(sink<U>)    i.e.  bool(bool(T)) -> bool(bool(U))
    //  source:     void(sink)
 
-   template <typename F>
-   struct Source
+   struct source_tag {};
+   struct pipe_tag   {};
+   struct sink_tag   {};
+
+   template <typename Tag, typename Function>
+   struct Element
    {
-      F f;
+      template <typename... A>
+      auto operator()(A&&... args) { return f(FORWARD(args)...); }
+      Function f;
    };
 
-   template <typename F>
-   Source<F> source( F&& f ) { return { FORWARD(f) }; }
+   template <typename ElementType>
+   struct tag_of;
+
+   template <typename Tag, typename F>
+   struct tag_of<Element<Tag,F>> { using type = Tag; };
+
+   template <typename ElementType>
+   using tag_of_t = typename tag_of<std::decay_t<ElementType>>::type;
 
 
-   template <typename F>
-   struct Pipe
+
+   template <typename F> using Source = Element<source_tag,F>;
+   template <typename F> using Pipe   = Element<pipe_tag,F>;
+   template <typename F> using Sink   = Element<sink_tag,F>;
+
+
+   template <typename F> Source<F> source( F&& f ) { return { FORWARD(f) }; }
+   template <typename F> Pipe<F>   pipe( F&& f )   { return { FORWARD(f) }; }
+   template <typename F> Sink<F>   sink( F&& f )   { return { FORWARD(f) }; }
+
+
+
+
+
+   template <typename SourceT, typename PipeT>
+   decltype(auto) compose( source_tag, pipe_tag, SourceT&& s, PipeT&& p )
    {
-      F f;
-   };
-
-   template <typename F>
-   Pipe<F> pipe( F&& f ) { return { FORWARD(f) }; }
-
-
-   template <typename F>
-   struct Sink
-   {
-      template <typename A>
-      auto operator()(A&& arg) { return f(FORWARD(arg)); }
-      F f;
-   };
-
-   template <typename F>
-   Sink<F> sink( F&& f ) { return { FORWARD(f) }; }
-
-
-
-   template <typename F, typename G>
-   auto operator|( Source<F> s, Pipe<G> p )
-   {
-      return source([ src=s.f, p=p.f ](auto&& sink){ return src(p(sink)); });
+      return source([ src = CAPTURE(s), pip=CAPTURE(p) ](auto&& sink)
+      {
+         return src.value.f(pip.value.f( FORWARD(sink) ) );
+      });
    }
 
-   template <typename F, typename G>
-   auto operator|( Pipe<F> l, Pipe<G> r )  // -> Pipe<F*G>
+   template <typename PipeL, typename PipeR>
+   decltype(auto) compose( pipe_tag, pipe_tag, PipeL&& pl, PipeR&& pr )
    {
-      return pipe([ f=l.f, g=r.f ](auto&& x){ return f(g((x))); });
+      return pipe([ pl = CAPTURE(pl), pr = CAPTURE(pr) ](auto&& x)
+      {
+         return pl.value.f(pr.value.f( FORWARD(x) ));
+      });
    }
 
-   template <typename F, typename G>
-   auto operator|( Pipe<F> p, Sink<G> s )  // -> Sink<F*G>
+   template <typename PipeT, typename SinkT>
+   decltype(auto) compose( pipe_tag, sink_tag, PipeT&& p, SinkT&& s )
    {
       return sink(p.f(s.f));
    }
 
-   template <typename F, typename G>
-   void operator|( Source<F> s, Sink<G> p )
+   template <typename SourceT, typename SinkT>
+   decltype(auto) compose( source_tag, sink_tag, SourceT&& s, SinkT&& sk )
    {
-      s.f(p.f);
+      s.f(sk.f);
    }
+
+
+   template <typename LeftElem, typename RightElem>
+   decltype(auto) operator|( LeftElem&& l, RightElem&& r )
+   {
+      return compose( tag_of_t<LeftElem>{}, tag_of_t<RightElem>{}
+                    , std::forward<LeftElem>(l), std::forward<RightElem>(r)
+                    );
+   }
+
+
+
+
+
 
 
    template <typename F, typename G>
@@ -89,7 +135,11 @@ namespace pipeline {
    template <typename F>
    auto subscribe( F&& f )
    {
-      return sink([f](auto&& v){ f(std::forward<decltype(v)>(v)); return true; });
+      return sink([f](auto&& x)
+      {
+         f(FORWARD(x));
+         return true;
+      });
    }
 
 
@@ -98,9 +148,9 @@ namespace pipeline {
    {
       return pipe([f](auto&& a)
       {
-         return [f,a](auto&& e) mutable
+         return [f=std::move(f),a](auto&& x) mutable
          {
-            if (f(e)) return a(e);
+            if (f(x)) return a(FORWARD(x));
             return true;
          };
       });
@@ -110,11 +160,11 @@ namespace pipeline {
    template <typename F>
    auto transform( F&& f )
    {
-      return pipe([&f](auto&& a)
+      return pipe([f](auto&& a)
       {
-         return [&f,a](auto&& e) mutable
+         return [f=std::move(f),a](auto&& x) mutable
          {
-            return a(f(e));
+            return a(f(x));
          };
       });
    }
@@ -153,7 +203,7 @@ namespace pipeline {
    {
       return pipe([f](auto&& a)
       {
-         return [f,a,taking=true](auto&& x) mutable
+         return [f=std::move(f),a,taking=true](auto&& x) mutable
          {
             if (taking)
             {
@@ -185,7 +235,7 @@ namespace pipeline {
    {
       return pipe([f](auto&& a)
       {
-         return [f,a,dropping=true](auto&& x) mutable
+         return [f=std::move(f),a,dropping=true](auto&& x) mutable
          {
             if (dropping)
             {
@@ -219,15 +269,29 @@ namespace pipeline {
 
 
 
-   template <typename F1, typename F2>
-   auto merge( Source<F1> src1, Source<F2> src2 )
+   template <typename Source1, typename Source2>
+   decltype(auto) merge( source_tag, source_tag, Source1&& src1, Source2&& src2 )
    {
-      return source([=](auto snk){
-         src1.f(std::ref(snk));
-         src2.f(std::ref(snk));
+      return source([ src1 = CAPTURE(src1), src2 = CAPTURE(src2) ]
+      (auto&& snk)
+      {
+         using sink_t = std::decay_t<decltype(snk)>;
+         auto shared_sink = [shink = std::make_shared<sink_t>(FORWARD(snk))]
+                            (auto&& x){ return (*shink)(FORWARD(x)); };
+         src1.value.f(shared_sink);
+         src2.value.f(shared_sink);
       });
    }
 
+   template <typename Source1, typename Source2>
+   decltype(auto) merge( Source1&& src1, Source2&& src2 )
+   {
+      return merge( tag_of_t<Source1>{}, tag_of_t<Source2>{}
+                  , std::forward<Source1>(src1), std::forward<Source2>(src2)
+                  );
+   }
+
+   // TODO fix these:
 
    template <typename F>
    auto merge_in( Source<F> src )
