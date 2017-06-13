@@ -17,14 +17,14 @@ auto overload(Lambdas&&... ls) -> overloaded<std::decay_t<Lambdas>...>
 
 
 template <typename... Lambdas>
-struct selecta
+struct static_selecta
 {
    static constexpr bool all_noexcept = (noexcept(std::declval<Lambdas>()()) && ...);
 
    using ov_t = overloaded<Lambdas...>;
    ov_t  ov;
 
-   selecta(Lambdas&&... lambdas) : ov{std::forward<Lambdas>(lambdas)...} {}
+   static_selecta(Lambdas&&... lambdas) : ov{std::forward<Lambdas>(lambdas)...} {}
 
    using fn_ptr_t = void (*)(ov_t&) noexcept(all_noexcept);
 
@@ -53,7 +53,7 @@ int main()
 {
    using namespace std;
 
-   auto sel = selecta
+   auto sel = static_selecta
    {  [x = 3]     { std::cout << "first: " << x << std::endl; }
    ,  [x = 3.14]  { std::cout << "second:" << x << std::endl; }
    };
