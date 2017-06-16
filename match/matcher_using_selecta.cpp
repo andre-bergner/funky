@@ -71,14 +71,6 @@ namespace detail
 
 
 
-template <typename Lambda>
-static constexpr auto make_action(Lambda&& l)
-{
-   using arg_t = detail::first_arg_t<Lambda>;
-   return [l]() noexcept(noexcept(l(arg_t{}))) { l(arg_t{}); };
-}
-
-
 template <typename... Lambdas>
 auto dispatch(Lambdas&&... lambdas)
 {
@@ -88,6 +80,12 @@ auto dispatch(Lambdas&&... lambdas)
 
    using result_t = result_t<Lambdas...>;
    using match_list_t = std::integer_sequence<int, detail::first_arg_t<Lambdas>::value... >;
+
+   auto make_action = [](auto&& l)
+   {
+      using arg_t = detail::first_arg_t<decltype(l)>;
+      return [l]() noexcept(noexcept(l(arg_t{}))) { l(arg_t{}); };
+   };
 
 
    return [sel = make_static_selecta(make_action(std::forward<Lambdas>(lambdas))...)](auto x) -> opt_result_t<result_t>
@@ -142,4 +140,31 @@ int main()
 */
 
 }
+
+
+/*
+   volatile int k;
+
+   for ( auto n : {1,2,3,4,5,6,7})
+      match(n)
+      (  [&k](int_<1>){ k=1337; }
+      ,  [&k](int_<4>){ k=-3; }
+      ,  [&k](int_<6>){ k=5; }
+      ,  [&k](int_<7>){ k=7; }
+      );
+
+**************************************
+
+match(int):                              # @match(int)
+        mov     eax, edi
+        ret
+main:                                   # @main
+        mov     dword ptr [rsp - 4], 1337
+        mov     dword ptr [rsp - 4], -3
+        mov     dword ptr [rsp - 4], 5
+        mov     dword ptr [rsp - 4], 7
+        xor     eax, eax
+        ret
+*/
+
 
