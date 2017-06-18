@@ -1,11 +1,7 @@
-//#include "signature.h"
-#include "../funky/signature.h"
+#include "detail_result.h"
 
-#include <optional>
-#include <type_traits>
 #include <tuple>
 #include <iostream>
-
 
 
 template <int N>
@@ -14,79 +10,6 @@ using int_ = std::integral_constant<int,N>;
 
 namespace detail
 {
-
-   // Some helper type trait
-
-   template <typename Function, typename... Functions>
-   struct result
-   {
-      using type = typename signature<Function>::result_type;
-
-      template <typename...> struct type_list {};
-
-      template <typename F>
-      using as_type = std::decay_t<type>;
-
-      using all_results = type_list<typename signature<Functions>::result_type...>;
-      using expected_results = type_list<as_type<Functions>...>;
-
-      static_assert( std::is_same< all_results, expected_results>::value
-                   , "All functions must have the same result type.");
-   };
-
-   template <typename... Functions>
-   using result_t = typename result<Functions...>::type;
-
-
-   template <typename T>
-   using opt_result_t = std::conditional_t<std::is_same<void,T>::value, bool, std::optional<T>>;
-
-
-   template <typename ResultType>
-   struct invoker
-   {
-      template <typename Function, typename Arg>
-      static decltype(auto) apply(Function& f, Arg&& a)
-      {
-          return f(std::forward<Arg>(a));
-      }
-   };
-
-   template <>
-   struct invoker<void>
-   {
-      template <typename Function, typename Arg>
-      static decltype(auto) apply(Function& f, Arg&& a)
-      {
-          return f(std::forward<Arg>(a)), true;
-      }
-   };
-
-
-
-
-
-   template <typename ReturnType, typename Value>
-   auto dispatch_impl(Value) -> opt_result_t<ReturnType>
-   {
-      return {};
-   }
-
-
-   template <typename ReturnType, typename Value, typename Lambda, typename... Lambdas>
-   auto dispatch_impl(Value x, Lambda& l, Lambdas&... ls) -> opt_result_t<ReturnType>
-   {
-      using match_t = std::remove_reference_t<typename signature<Lambda>::template argument<0>::type>;
-
-      if ( match_t::value == x)
-         return invoker<ReturnType>::apply(l,match_t{});
-      else
-         return dispatch_impl<ReturnType>(x,ls...);
-   }
-
-
-
-
    template <size_t Ofs, typename Seq>
    struct shift_seq;
 
@@ -101,10 +24,6 @@ namespace detail
 
 
 
-   template <typename Function>
-   using match_on_t = std::remove_reference_t<typename signature<Function>::template argument<0>::type>;
-
-
    template <typename Tuple, size_t... Ns>
    auto tuple_indexed(Tuple&& t, std::index_sequence<Ns...>)
    {
@@ -112,30 +31,30 @@ namespace detail
    }
 
 
-   template <typename X, typename F>
-   bool binary_dispatch(X x, std::tuple<F> const& t)
+   template <typename ReturnType, typename X, typename F>
+   auto binary_dispatch(X x, std::tuple<F> const& t) -> opt_result_t<ReturnType>
    {
-      using match_t = match_on_t<F>;
+      using match_t = first_arg_t<F>;
       if (match_t::value == x)
          return std::get<0>(t)(match_t{}), true;
       return false;
    }
 
-   template <typename X, typename... Fs>
-   auto binary_dispatch(X x, std::tuple<Fs...> t)
+   template <typename ReturnType, typename X, typename... Fs>
+   auto binary_dispatch(X x, std::tuple<Fs...> t) -> opt_result_t<ReturnType>
    {
       constexpr size_t s = sizeof...(Fs);
 
-      using match_t = match_on_t<std::tuple_element_t<s/2,std::tuple<Fs...>>>;
+      using match_t = first_arg_t<std::tuple_element_t<s/2,std::tuple<Fs...>>>;
       if (x < match_t::value)
       {
          using left_idx_t = std::make_index_sequence<s/2>;
-         return binary_dispatch(x, tuple_indexed(t, left_idx_t{}));
+         return binary_dispatch<ReturnType>(x, tuple_indexed(t, left_idx_t{}));
       }
       else
       {
          using right_idx_t = shift_seq_t<s/2,std::make_index_sequence<s/2+(s&1)>>;
-         return binary_dispatch(x, tuple_indexed(t, right_idx_t{}));
+         return binary_dispatch<ReturnType>(x, tuple_indexed(t, right_idx_t{}));
       }
    }
 
@@ -151,15 +70,10 @@ auto dispatch(Lambdas&&... lambdas)
    // TODO: sort lambdas
 
    using result_t = result_t<Lambdas...>;
-   //return [=](auto x) -> opt_result_t<result_t>
-   //{
-   //   return dispatch_impl<result_t>(x, lambdas...);
-   //};
 
    return [t = std::make_tuple(std::forward<Lambdas>(lambdas)...)](auto x) -> opt_result_t<result_t>
    {
-      //return dispatch_impl<result_t>(x, lambdas...);
-      return binary_dispatch(x, t);
+      return binary_dispatch<result_t>(x, t);
    };
 }
 
