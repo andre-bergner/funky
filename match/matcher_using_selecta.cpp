@@ -1,4 +1,3 @@
-//#include "signature.h"
 #include "../funky/signature.h"
 #include "static_selecta.h"
 
@@ -67,12 +66,76 @@ namespace detail
    using first_arg_t = std::remove_reference_t<typename signature<Function>::template argument<0>::type>;
 
 
+   template <typename Value, int Size>
+   struct constexpr_view
+   {
+      Value*  data;
+      static constexpr size_t size = Size;
+
+      constexpr_view(Value* p) : data{p} {}
+
+      constexpr auto operator[](int n)       -> Value &       { return data[n]; }
+      constexpr auto operator[](int n) const -> Value const&  { return data[n]; }
+   };
+
+#if 0
+
+   template <typename ContainedValue, typename Value, typename Function>
+   auto if_sorted_range_contains(ContainedValue x, constexpr_view<Value,1> xs, Function&& f, size_t i=0) -> decltype(f(x))
+   {
+      if (x == xs[0])
+         return f(i);
+      else
+         return {};
+   }
+
+   template <typename ContainedValue, typename Value, int N, typename Function>
+   auto if_sorted_range_contains(ContainedValue x, constexpr_view<Value,N> xs, Function&& f, size_t i=0) -> decltype(f(x))
+   {
+      if (x < xs[N/2])
+         return if_sorted_range_contains(x, constexpr_view<Value,N/2>{xs.data}, std::forward<Function>(f));
+      else
+         return if_sorted_range_contains(x, constexpr_view<Value,N-N/2>{xs.data+N/2}, std::forward<Function>(f), i+N/2);
+   }
+
+#else
+
+   template <typename ContainedValue, typename Value, int N, typename Function>
+   auto if_sorted_range_contains(ContainedValue x, constexpr_view<Value,N> xs, Function&& f) -> decltype(f(x))
+   {
+      auto*  p = xs.data;
+      for (auto n = N/2; n > 0; n /= 2)
+      {
+         if (x >= p[n])
+            p += n;
+      }
+
+      if (x == *p)
+         return f(p-xs.data);
+      else
+         return {};
+   }
+
+#endif
+
+   template <typename ContainedValue, typename Value, size_t N, typename Function>
+   auto if_range_contains(ContainedValue x, Value (&xs)[N], Function&& f) -> decltype(f(x))
+   {
+      int i = 0;
+      for (auto m : xs)
+      {
+         if (x == m)
+            return f(i);
+         ++i;
+      }
+      return {};
+   }
 }
 
 
 
 template <typename... Lambdas>
-auto dispatch(Lambdas&&... lambdas)
+constexpr auto dispatch(Lambdas&&... lambdas)
 {
    using namespace detail;
 
@@ -92,20 +155,16 @@ auto dispatch(Lambdas&&... lambdas)
    {
 
       constexpr int matches[] = { detail::first_arg_t<Lambdas>::value... };
-      int i = 0;
-      for (auto m : matches)
-      {
-         if (x == m)
-            return sel(i),true;
-         ++i;
-      }
-      return false;
+
+      return detail::if_sorted_range_contains(x, constexpr_view<int const,sizeof...(Lambdas)>{matches}, [&](auto&& v){
+         return sel(std::forward<decltype(v)>(v)), true;
+      });
    };
 }
 
 
 
-auto match(int x)
+constexpr auto match(int x)
 {
    return [x](auto&&... lambdas)
    {
@@ -129,42 +188,4 @@ int main()
       ,  [](int_<6>){ cout << "6ix" << endl; }
       ,  [](int_<7>){ cout << "7even" << endl; }
       );
-
-/*
-      match(n)
-      (  [](int_<1337>)             { … }
-      ,  [](any_of_int<4,2,7,1338>) { … }
-      ,  [](range_<13,37>)          { … }
-      ,  [](int_<7>)                { … }
-      );
-*/
-
 }
-
-
-/*
-   volatile int k;
-
-   for ( auto n : {1,2,3,4,5,6,7})
-      match(n)
-      (  [&k](int_<1>){ k=1337; }
-      ,  [&k](int_<4>){ k=-3; }
-      ,  [&k](int_<6>){ k=5; }
-      ,  [&k](int_<7>){ k=7; }
-      );
-
-**************************************
-
-match(int):                              # @match(int)
-        mov     eax, edi
-        ret
-main:                                   # @main
-        mov     dword ptr [rsp - 4], 1337
-        mov     dword ptr [rsp - 4], -3
-        mov     dword ptr [rsp - 4], 5
-        mov     dword ptr [rsp - 4], 7
-        xor     eax, eax
-        ret
-*/
-
-
