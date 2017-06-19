@@ -1,7 +1,7 @@
 #include "detail_result.h"
+#include "constexpr_sort.h"
 
 #include <tuple>
-#include <iostream>
 
 
 template <int N>
@@ -25,14 +25,14 @@ namespace detail
 
 
    template <typename Tuple, size_t... Ns>
-   auto tuple_indexed(Tuple&& t, std::index_sequence<Ns...>)
+   constexpr auto tie_indexed(Tuple&& t, std::index_sequence<Ns...>)
    {
       return std::tie( std::get<Ns>(t)... );
    }
 
 
    template <typename ReturnType, typename X, typename F>
-   auto binary_dispatch(X x, std::tuple<F> const& t) -> opt_result_t<ReturnType>
+   constexpr auto binary_dispatch(X x, std::tuple<F> const& t) -> opt_result_t<ReturnType>
    {
       using match_t = first_arg_t<F>;
       if (match_t::value == x)
@@ -41,7 +41,7 @@ namespace detail
    }
 
    template <typename ReturnType, typename X, typename... Fs>
-   auto binary_dispatch(X x, std::tuple<Fs...> t) -> opt_result_t<ReturnType>
+   constexpr auto binary_dispatch(X x, std::tuple<Fs...> t) -> opt_result_t<ReturnType>
    {
       constexpr size_t s = sizeof...(Fs);
 
@@ -49,12 +49,12 @@ namespace detail
       if (x < match_t::value)
       {
          using left_idx_t = std::make_index_sequence<s/2>;
-         return binary_dispatch<ReturnType>(x, tuple_indexed(t, left_idx_t{}));
+         return binary_dispatch<ReturnType>(x, tie_indexed(t, left_idx_t{}));
       }
       else
       {
          using right_idx_t = shift_seq_t<s/2,std::make_index_sequence<s/2+(s&1)>>;
-         return binary_dispatch<ReturnType>(x, tuple_indexed(t, right_idx_t{}));
+         return binary_dispatch<ReturnType>(x, tie_indexed(t, right_idx_t{}));
       }
    }
 
@@ -62,24 +62,33 @@ namespace detail
 }
 
 
-template <typename... Lambdas>
-auto dispatch(Lambdas&&... lambdas)
+template <typename... Lambdas, size_t... Ns>
+constexpr auto dispatch_sorted(std::tuple<Lambdas...> lambdas, std::index_sequence<Ns...> )
 {
    using namespace detail;
 
-   // TODO: sort lambdas
-
    using result_t = result_t<Lambdas...>;
 
-   return [t = std::make_tuple(std::forward<Lambdas>(lambdas)...)](auto x) -> opt_result_t<result_t>
+   return [t = std::make_tuple(std::get<Ns>(lambdas)...)](auto x) -> opt_result_t<result_t>
    {
       return binary_dispatch<result_t>(x, t);
    };
 }
 
 
+template <typename... Lambdas>
+constexpr auto dispatch(Lambdas&&... lambdas)
+{
+   using namespace detail;
 
-auto match(int x)
+   using sorted_lambda_idx_t = constexpr_sort_index_t<size_t, detail::first_arg_t<Lambdas>::value... >;
+
+   return dispatch_sorted( std::forward_as_tuple(std::forward<Lambdas>(lambdas)...), sorted_lambda_idx_t{});
+}
+
+
+
+constexpr auto match(int x)
 {
    return [x](auto&&... lambdas)
    {
@@ -96,13 +105,25 @@ int main()
 {
    using namespace std;
 
+#if 1
    for (auto n : {1,2,3,4,5,6,7})
       match(n)
-      (  [](int_<1>){ cout << "1ne" << endl; }
-      ,  [](int_<4>){ cout << "4our" << endl; }
-      ,  [](int_<6>){ cout << "6ix" << endl; }
-      ,  [](int_<7>){ cout << "7even" << endl; }
+      (  [&](int_<4>){ cout << "4our" << endl; }
+      ,  [&](int_<6>){ cout << "6ix"  << endl; }
+      ,  [&](int_<1>){ cout << "1ne"  << endl; }
+      ,  [&](int_<3>){ cout << "3ree"  << endl; }
+      ,  [&](int_<7>){ cout << "7even" << endl; }
       );
+#else
+   volatile int k;
+   volatile int n = 7;
+      match(n)
+      (  [&](int_<4>){ k = 3; }
+      ,  [&](int_<6>){ k = 5; }
+      ,  [&](int_<1>){ k = 1337; }
+      ,  [&](int_<7>){ k = -2; }
+      );
+#endif
 
 /*
       match(n)
@@ -112,6 +133,5 @@ int main()
       ,  [](int_<7>)                { … }
       );
 */
-
 }
 
