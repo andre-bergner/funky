@@ -16,6 +16,7 @@ void f(std::integer_sequence<int,ns...>)
 int main()
 {
    f(constexpr_sort_t<int, 4, 7, 2, 9, 3, 7>{});
+   f(constexpr_sort_index_t<int, 4, 7, 2, 9, 3, 7>{});
 }
 
 
