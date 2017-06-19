@@ -1,7 +1,6 @@
 #include "detail_result.h"
 #include "static_selecta.h"
-
-#include <iostream>
+#include "constexpr_sort.h"
 
 
 
@@ -23,7 +22,7 @@ namespace detail
       constexpr auto operator[](int n) const -> Value const&  { return data[n]; }
    };
 
-#if 0
+#if 1
 
    template <typename ContainedValue, typename Value, typename Function>
    auto if_sorted_range_contains(ContainedValue x, constexpr_view<Value,1> xs, Function&& f, size_t i=0) -> decltype(f(x))
@@ -38,7 +37,7 @@ namespace detail
    auto if_sorted_range_contains(ContainedValue x, constexpr_view<Value,N> xs, Function&& f, size_t i=0) -> decltype(f(x))
    {
       if (x < xs[N/2])
-         return if_sorted_range_contains(x, constexpr_view<Value,N/2>{xs.data}, std::forward<Function>(f));
+         return if_sorted_range_contains(x, constexpr_view<Value,N/2>{xs.data}, std::forward<Function>(f),i);
       else
          return if_sorted_range_contains(x, constexpr_view<Value,N-N/2>{xs.data+N/2}, std::forward<Function>(f), i+N/2);
    }
@@ -79,12 +78,10 @@ namespace detail
 
 
 
-template <typename... Lambdas>
-constexpr auto dispatch(Lambdas&&... lambdas)
+template <typename... Lambdas, size_t... Ns>
+constexpr auto dispatch_sorted(std::tuple<Lambdas...> lambdas, std::index_sequence<Ns...> )
 {
    using namespace detail;
-
-   // TODO: sort lambdas
 
    using result_t = result_t<Lambdas...>;
    using match_list_t = std::integer_sequence<int, detail::first_arg_t<Lambdas>::value... >;
@@ -96,15 +93,27 @@ constexpr auto dispatch(Lambdas&&... lambdas)
    };
 
 
-   return [sel = make_static_selecta(make_action(std::forward<Lambdas>(lambdas))...)](auto x) -> opt_result_t<result_t>
+   return [sel = make_static_selecta(make_action(std::get<Ns>(lambdas))...)]
+   (auto x) -> opt_result_t<result_t>
    {
-
-      constexpr int matches[] = { detail::first_arg_t<Lambdas>::value... };
+      using tuple_t = std::tuple<Lambdas...>;
+      constexpr int matches[] = { detail::first_arg_t<std::tuple_element_t<Ns,tuple_t>>::value... };
 
       return detail::if_sorted_range_contains(x, constexpr_view<int const,sizeof...(Lambdas)>{matches}, [&](auto&& v){
          return sel(std::forward<decltype(v)>(v)), true;
       });
    };
+}
+
+
+template <typename... Lambdas>
+constexpr auto dispatch(Lambdas&&... lambdas)
+{
+   using namespace detail;
+
+   using sorted_lambda_idx_t = constexpr_sort_index_t<size_t, detail::first_arg_t<Lambdas>::value... >;
+
+   return dispatch_sorted( std::forward_as_tuple(std::forward<Lambdas>(lambdas)...), sorted_lambda_idx_t{});
 }
 
 
@@ -126,11 +135,23 @@ int main()
 {
    using namespace std;
 
+#if 1
    for (auto n : {1,2,3,4,5,6,7})
       match(n)
-      (  [](int_<1>){ cout << "1ne" << endl; }
-      ,  [](int_<4>){ cout << "4our" << endl; }
-      ,  [](int_<6>){ cout << "6ix" << endl; }
-      ,  [](int_<7>){ cout << "7even" << endl; }
+      (  [&](int_<4>){ cout << "4our" << endl; }
+      ,  [&](int_<6>){ cout << "6ix"  << endl; }
+      ,  [&](int_<1>){ cout << "1ne"  << endl; }
+      ,  [&](int_<3>){ cout << "3ree"  << endl; }
+      ,  [&](int_<7>){ cout << "7even" << endl; }
       );
+#else
+   volatile int k;
+   volatile int n = 7;
+      match(n)
+      (  [&](int_<4>){ k = 3; }
+      ,  [&](int_<6>){ k = 5; }
+      ,  [&](int_<1>){ k = 1337; }
+      ,  [&](int_<7>){ k = -2; }
+      );
+#endif
 }

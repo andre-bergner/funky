@@ -14,6 +14,12 @@ struct constexpr_array
    static constexpr size_t size_ = Size;
 };
 
+template <typename First, typename Second>
+struct constexpr_pair
+{
+   First   first;
+   Second  second;
+};
 
 
 template <typename Integer, Integer... ns>
@@ -21,8 +27,8 @@ constexpr auto bubble_sort_preserve_index()
 {
    constexpr size_t N = sizeof...(ns);
 
-   using pair_t = constexpr_array<int,2>;
-   Integer idx = 0;
+   using pair_t = constexpr_pair<Integer,size_t>;
+   size_t idx = 0;
    constexpr_array<pair_t, N> a = {pair_t{ns,idx++}...};
 
    if (N > 1)
@@ -30,7 +36,7 @@ constexpr auto bubble_sort_preserve_index()
       {
          for (size_t j = 0;  j < N - i - 1;  j++)
          {
-            if (a[j][0] > a[j+1][0])
+            if (a[j].first > a[j+1].first)
             {
                auto temp = a[j];
                a[j]   = a[j+1];
@@ -43,12 +49,36 @@ constexpr auto bubble_sort_preserve_index()
 }
 
 
+template <size_t N>
+struct constexpr_pair_select;
+
+template <>
+struct constexpr_pair_select<0>
+{
+   template <typename First, typename Second>
+   static constexpr First const& apply(constexpr_pair<First,Second> const& p) { return p.first; }
+
+   template <typename First, typename Second>
+   static constexpr First& apply(constexpr_pair<First,Second>& p) { return p.first; }
+};
+
+template <>
+struct constexpr_pair_select<1>
+{
+   template <typename First, typename Second>
+   static constexpr Second const& apply(constexpr_pair<First,Second> const& p) { return p.second; }
+
+   template <typename First, typename Second>
+   static constexpr Second& apply(constexpr_pair<First,Second>& p) { return p.second; }
+};
+
+
 
 template <size_t N, typename Integer, Integer... ns, size_t... is>
 auto constexpr_sort_impl(std::integer_sequence<Integer, ns...>, std::index_sequence<is...> )
 {
     constexpr auto array_sorted = bubble_sort_preserve_index<Integer, ns...>();
-    return std::integer_sequence< Integer, array_sorted[is][N]... >{};
+    return std::integer_sequence< Integer, constexpr_pair_select<N>::apply(array_sorted[is])... >{};
 }
 
 
