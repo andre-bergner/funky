@@ -1,3 +1,5 @@
+#pragma once
+
 #include "../funky/signature.h"
 
 #include <type_traits>
