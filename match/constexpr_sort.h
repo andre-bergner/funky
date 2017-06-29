@@ -13,6 +13,9 @@ struct constexpr_array
 
    constexpr size_t size() const { return Size; }
 
+   constexpr Value const* begin() const { return data; }
+   constexpr Value const* end () const  { return begin()+size(); }
+
    static constexpr size_t size_ = Size;
 };
 
