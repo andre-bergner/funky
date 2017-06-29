@@ -1,6 +1,6 @@
 #pragma once
 
-#include "detail/result.h"
+#include "result.h"
 
 #include <tuple>
 

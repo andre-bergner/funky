@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../funky/signature.h"
+#include "../../funky/signature.h"
 
 #include <type_traits>
 #include <optional>
@@ -40,20 +40,20 @@ namespace detail
    template <typename ResultType>
    struct invoker
    {
-      template <typename Function, typename Arg>
-      static decltype(auto) apply(Function& f, Arg&& a)
+      template <typename Function, typename... Args>
+      static decltype(auto) apply(Function&& f, Args&&... args)
       {
-          return f(std::forward<Arg>(a));
+          return std::forward<Function>(f)( std::forward<Args>(args)... );
       }
    };
 
    template <>
    struct invoker<void>
    {
-      template <typename Function, typename Arg>
-      static decltype(auto) apply(Function& f, Arg&& a)
+      template <typename Function, typename... Args>
+      static decltype(auto) apply(Function&& f, Args&&... args)
       {
-          return f(std::forward<Arg>(a)), true;
+          return std::forward<Function>(f)( std::forward<Args>(args)... ), true;
       }
    };
 
