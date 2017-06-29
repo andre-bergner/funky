@@ -16,7 +16,7 @@ auto overload(Lambdas&&... ls) -> overloaded<std::decay_t<Lambdas>...>
 };
 
 
-template <typename... Lambdas>
+template <typename ResultType, typename... Lambdas>
 struct static_selecta
 {
    static constexpr bool all_noexcept = (noexcept(std::declval<Lambdas>()()) && ...);
@@ -27,20 +27,20 @@ struct static_selecta
    static_selecta(Lambdas&&... lambdas) : ov{std::forward<Lambdas>(lambdas)...} {}
 
 
-   using fn_ptr_t = void (*)(ov_t&) noexcept(all_noexcept);
-   using cfn_ptr_t = void (*)(ov_t const&) noexcept(all_noexcept);
+   using fn_ptr_t = ResultType (*)(ov_t&) noexcept(all_noexcept);
+   using cfn_ptr_t = ResultType (*)(ov_t const&) noexcept(all_noexcept);
 
 
    template <typename Lambda>
    static constexpr auto make_caller()
    {
-      return [](ov_t& ov) noexcept(all_noexcept) { static_cast<Lambda>(ov)(); };
+      return [](ov_t& ov) noexcept(all_noexcept) { return static_cast<Lambda>(ov)(); };
    }
 
    template <typename Lambda>
    static constexpr auto make_const_caller()
    {
-      return [](ov_t const& ov) noexcept(all_noexcept) { static_cast<Lambda>(ov)(); };
+      return [](ov_t const& ov) noexcept(all_noexcept) { return static_cast<Lambda>(ov)(); };
    }
 
 
@@ -48,13 +48,13 @@ struct static_selecta
    constexpr static cfn_ptr_t cfn[] = { make_const_caller<Lambdas>()... };
 
 
-   constexpr void operator()(size_t n)       noexcept(all_noexcept) { fn[n](ov); }
-   constexpr void operator()(size_t n) const noexcept(all_noexcept) { cfn[n](ov); }
+   constexpr ResultType operator()(size_t n)       noexcept(all_noexcept) { return fn[n](ov); }
+   constexpr ResultType operator()(size_t n) const noexcept(all_noexcept) { return cfn[n](ov); }
 };
 
 
-template <typename... Lambdas>
-auto make_static_selecta(Lambdas&&... ls) -> static_selecta<Lambdas...>
+template <typename ResultType, typename... Lambdas>
+auto make_static_selecta(Lambdas&&... ls) -> static_selecta<ResultType, Lambdas...>
 {
    return { std::forward<Lambdas>(ls)... };
 }

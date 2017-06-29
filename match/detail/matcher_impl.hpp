@@ -28,16 +28,16 @@ namespace detail
 
 
    template <typename ReturnType, typename X, typename F>
-   constexpr auto binary_dispatch(X x, std::tuple<F> const& t) -> opt_result_t<ReturnType>
+   constexpr auto binary_dispatch(X&& x, std::tuple<F> const& t) -> opt_result_t<ReturnType>
    {
       using match_t = first_arg_t<F>;
-      if (match_t::value == x)
-         return std::get<0>(t)(match_t{}), true;
-      return false;
+      if (x == match_t::value)
+         return invoker<ReturnType>::apply(std::get<0>(t),match_t{});
+      return {};
    }
 
    template <typename ReturnType, typename X, typename... Fs>
-   constexpr auto binary_dispatch(X x, std::tuple<Fs...> t) -> opt_result_t<ReturnType>
+   constexpr auto binary_dispatch(X&& x, std::tuple<Fs...> t) -> opt_result_t<ReturnType>
    {
       constexpr size_t s = sizeof...(Fs);
 
@@ -45,12 +45,12 @@ namespace detail
       if (x < match_t::value)
       {
          using left_idx_t = std::make_index_sequence<s/2>;
-         return binary_dispatch<ReturnType>(x, tie_indexed(t, left_idx_t{}));
+         return binary_dispatch<ReturnType>(std::forward<X>(x), tie_indexed(t, left_idx_t{}));
       }
       else
       {
          using right_idx_t = shift_seq_t<s/2,std::make_index_sequence<s/2+(s&1)>>;
-         return binary_dispatch<ReturnType>(x, tie_indexed(t, right_idx_t{}));
+         return binary_dispatch<ReturnType>(std::forward<X>(x), tie_indexed(t, right_idx_t{}));
       }
    }
 
@@ -62,9 +62,9 @@ namespace detail
 
       using result_t = result_t<Lambdas...>;
 
-      return [t = std::make_tuple(std::get<Ns>(lambdas)...)](auto x) -> opt_result_t<result_t>
+      return [t = std::make_tuple(std::get<Ns>(lambdas)...)](auto&& x) -> opt_result_t<result_t>
       {
-         return binary_dispatch<result_t>(x, t);
+         return binary_dispatch<result_t>(std::forward<decltype(x)>(x), t);
       };
    }
 

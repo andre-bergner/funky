@@ -83,18 +83,19 @@ namespace detail
       auto make_action = [](auto&& l)
       {
          using arg_t = detail::first_arg_t<decltype(l)>;
-         return [l]() noexcept(noexcept(l(arg_t{}))) { l(arg_t{}); };
+         return [l]() noexcept(noexcept(l(arg_t{}))) { return l(arg_t{}); };
       };
 
 
-      return [sel = make_static_selecta(make_action(std::get<Ns>(lambdas))...)]
+      return [sel = make_static_selecta<result_t>(make_action(std::get<Ns>(lambdas))...)]
       (auto x) -> opt_result_t<result_t>
       {
          using tuple_t = std::tuple<Lambdas...>;
          constexpr int matches[] = { detail::first_arg_t<std::tuple_element_t<Ns,tuple_t>>::value... };
 
          return detail::if_sorted_range_contains(x, constexpr_view<int const,sizeof...(Lambdas)>{matches}, [&](auto&& v){
-            return sel(std::forward<decltype(v)>(v)), true;
+            //return sel(std::forward<decltype(v)>(v)), true;
+            return invoker<result_t>::apply( sel, std::forward<decltype(v)>(v) );
          });
       };
    }
