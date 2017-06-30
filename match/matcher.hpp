@@ -63,7 +63,7 @@ struct match_pair
 
 
 template <typename Value, typename Lambda>
-auto operator >= (case_t<Value>&& c, Lambda&& lambda) -> match_pair<Value,Lambda>
+auto operator >>= (case_t<Value>&& c, Lambda&& lambda) -> match_pair<Value,Lambda>
 {
    return { std::move(c.value), std::forward<Lambda>(lambda) };
 }

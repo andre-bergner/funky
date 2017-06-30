@@ -36,11 +36,11 @@ int main()
 
    volatile auto x = 4.1;
    auto result = match2(x)
-   (  case_(4.1) >= []{ return 314; }
-   ,  case_(6.1) >= []{ return 47; }
-   ,  case_(1.1) >= []{ return 1337; }
-   ,  case_(3.1) >= []{ return 7357; }
-   ,  case_(7.1) >= []{ return -42; }
+   (  case_(4.1) >>= []{ return 314; }
+   ,  case_(6.1) >>= []{ return 47; }
+   ,  case_(1.1) >>= []{ return 1337; }
+   ,  case_(3.1) >>= []{ return 7357; }
+   ,  case_(7.1) >>= []{ return -42; }
    );
    std::cout << *result << std::endl;
 }
