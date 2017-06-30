@@ -1,0 +1,21 @@
+cmake_minimum_required  ( VERSION 3.4 )
+project                 ( match )
+set                     ( CMAKE_CXX_STANDARD 17 )
+
+#find_package(Match)
+#find_package(Nonius)
+#find_package(Boost 1.64.0 COMPONENTS ...)
+
+add_library                ( match INTERFACE )
+target_include_directories ( match INTERFACE . )
+
+#add_executable        ( benchmarks test/benchmark.cpp )
+#target_link_libraries ( benchmarks LINK_PUBLIC match )
+
+add_executable        ( tests test/tests.cpp )
+#add_executable        ( tests matcher.cpp )
+target_link_libraries ( tests LINK_PUBLIC match )
+
+if( CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang" )
+   set ( CMAKE_CXX_FLAGS "-fcolor-diagnostics")
+endif()
