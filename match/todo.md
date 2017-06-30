@@ -4,7 +4,17 @@
 * unit tests
 * benchmarks
 * type match
-  * fast type id: struct type_id { static const size_t id = ++g_id; }
+  * fast type id:
+    ```c++
+    size_t get_next_id()
+    {
+      static size_t id_counter = 0;
+      return id_counter++;
+    }
+
+    template <typename T>
+    struct type_id { static const size_t id = get_next_id(); }
+    ```
 * match ranges
   ```c++
    match(n)
