@@ -58,7 +58,7 @@ int main()
 
    nano_tests::def("match on case_: returns value of correct match", []
    {
-      auto result = match2(1.1)
+      auto result = match(1.1)
       (  case_(4.1) >>= []{ return 314; }
       ,  case_(6.1) >>= []{ return 47; }
       ,  case_(1.1) >>= []{ return 1337; }
@@ -88,7 +88,7 @@ int main()
 
    nano_tests::def("match on case_: returns nothing if no match found", []
    {
-      auto result = match2(2.5)
+      auto result = match(2.5)
       (  case_(1.) >>= []{ return 314; }
       ,  case_(2.) >>= []{ return 47; }
       );

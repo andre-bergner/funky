@@ -89,7 +89,7 @@ namespace detail
    struct is_constexpr_case< match_pair<Value,Lambda> > : std::false_type {};
 
    template <typename MatchCase>
-   constexpr bool is_constexpr_case_v = is_constexpr_case<MatchCase>::value;
+   constexpr bool is_constexpr_case_v = is_constexpr_case<std::decay_t<MatchCase>>::value;
 
 }
 
@@ -108,17 +108,6 @@ constexpr auto make_matcher(Lambdas&&... lambdas)
    return detail::dispatch_sorted( std::forward_as_tuple(std::forward<Lambdas>(lambdas)...), sorted_lambda_idx_t{});
 }
 
-
-template <typename Value>
-constexpr auto match(Value&& x)
-{
-   return [x=std::forward<Value>(x)](auto&&... lambdas)
-   {
-      return make_matcher(std::forward<decltype(lambdas)>(lambdas)...)(x);
-   };
-}
-
-
 //  ------------------------------------------------------------------------------------------------
 // matcher for non-constexpr values
 //  ------------------------------------------------------------------------------------------------
@@ -134,13 +123,35 @@ constexpr auto make_matcher2(Cases&&... cases)
    };
 }
 
-template <typename Value>
-constexpr auto match2(Value&& x)
+
+//  ------------------------------------------------------------------------------------------------
+// matcher -- main entry point with dispatch
+//  ------------------------------------------------------------------------------------------------
+
+namespace detail
 {
-   return [x=std::forward<Value>(x)](auto&&... cases)
+   template <typename X, typename... Cases>
+   auto dispatch_match(std::true_type, X&& x, Cases&&... cases)      // constexpr-case → binary search
+   {
+      return make_matcher(std::forward<Cases>(cases)...)(std::forward<X>(x));
+   }
+
+   template <typename X, typename... Cases>
+   auto dispatch_match(std::false_type, X&& x, Cases&&... cases)     // non-constexpr-case → linear search
    {
       using result_t = typename detail::result<decltype(cases.lambda)...>::type;
-      return detail::match_linear<result_t>( x, std::forward<decltype(cases)>(cases)... );
-   };
+      return detail::match_linear<result_t>( x, std::forward<Cases>(cases)... );
+   }
 }
 
+template <typename Value>
+constexpr auto match(Value&& x)
+{
+   return [x](auto&&... cases)
+   {
+      using namespace detail;
+      constexpr bool all_cases_are_constexpr = (is_constexpr_case_v<decltype(cases)> && ...);
+      using all_cases_are_constexpr_t = std::integral_constant<bool, all_cases_are_constexpr>;
+      return dispatch_match( all_cases_are_constexpr_t{}, x, std::forward<decltype(cases)>(cases)... );
+   };
+}
