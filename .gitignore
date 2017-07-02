@@ -26,3 +26,10 @@
 *.exe
 *.out
 *.app
+
+# build folders
+build/
+
+# IDE artefacts
+.vscode/
+
