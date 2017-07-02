@@ -23,6 +23,10 @@
         throw ::nano_tests::abort_current_test{};  \
     }
 
+#define ASSERT_TRUE( EXPR )   ASSERT(     (EXPR) )
+#define ASSERT_FALSE( EXPR )  ASSERT( not (EXPR) )
+
+
 namespace nano_tests {
 
     struct abort_current_test {};
