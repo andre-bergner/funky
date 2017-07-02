@@ -5,8 +5,34 @@
 template <int N>
 using int_ = std::integral_constant<int,N>;
 
+
 int main()
 {
+/*
+   nano_tests::def("match on constexpr int using arrow notation", []
+   {
+      auto result = match1(2)
+      (  val<1> >>= []{ return 1337; }
+      ,  val<2> >>= []{ return 7357; }
+      );
+
+      ASSERT_FATAL( result );
+      ASSERT( 7357 == *result );
+   });
+
+
+   nano_tests::def("match on constexpr int using lambda argument", []
+   {
+      auto result = match1(2)
+      (  [] (val_t<1>) { return 1337; }
+      ,  [] (val_t<2>) { return 7357; }
+      );
+
+      ASSERT_FATAL( result );
+      ASSERT( 7357 == *result );
+   });
+*/
+
    nano_tests::def("match on case_: returns value of correct match", []
    {
       auto result = match2(1.1)
@@ -50,30 +76,7 @@ int main()
       ASSERT( expected == result );
    });
 
-/*
-#if 1
-   for (auto n : {1,2,3,4,5,6,7})
-      match(n)
-      (  [&](int_<4>){ cout << "4our" << endl; }
-      ,  [&](int_<6>){ cout << "6ix"  << endl; }
-      ,  [&](int_<1>){ cout << "1ne"  << endl; }
-      ,  [&](int_<3>){ cout << "3ree"  << endl; }
-      ,  [&](int_<7>){ cout << "7even" << endl; }
-      );
-#else
-   volatile int n = 3;
-   volatile auto k
-   = match(n)
-      (  [](int_<4>){ return 314; }
-      ,  [](int_<6>){ return 47; }
-      ,  [](int_<1>){ return 1337; }
-      ,  [](int_<3>){ return 7357; }
-      ,  [](int_<7>){ return -42; }
-      );
-#endif
 
-   std::cout << "----- match 2 -----" << std::endl;
-*/
-    nano_tests::run();
+   nano_tests::run();
 }
 

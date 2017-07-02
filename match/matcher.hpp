@@ -1,15 +1,16 @@
 #pragma once
 
 #ifdef MATCHER_SELECTA
-#include "detail/matcher_impl_selecta.hpp"
+#  include "detail/matcher_impl_selecta.hpp"
 #else
-#include "detail/matcher_impl.hpp"
+#  include "detail/matcher_impl.hpp"
 #endif
 #include "constexpr_sort.h"
+#include "detail/linear_matcher_impl.hpp"
 
 
 template <typename... Lambdas>
-constexpr auto dispatch(Lambdas&&... lambdas)
+constexpr auto make_matcher(Lambdas&&... lambdas)
 {
    using namespace detail;
 
@@ -19,12 +20,12 @@ constexpr auto dispatch(Lambdas&&... lambdas)
 }
 
 
-
-constexpr auto match(int x)
+template <typename Value>
+constexpr auto match(Value&& x)
 {
-   return [x](auto&&... lambdas)
+   return [x=std::forward<Value>(x)](auto&&... lambdas)
    {
-      return dispatch(std::forward<decltype(lambdas)>(lambdas)...)(x);
+      return make_matcher(std::forward<decltype(lambdas)>(lambdas)...)(x);
    };
 }
 
@@ -71,34 +72,25 @@ auto operator >>= (case_t<Value>&& c, Lambda&& lambda) -> match_pair<Value,Lambd
 
 
 
-namespace detail
-{
-   template <typename ReturnType, typename X>
-   constexpr auto linear_dispatch(X&&) -> opt_result_t<ReturnType>
-   {
-      return {};
-   }
-
-   template <typename ReturnType, typename X, typename Case, typename... Cases>
-   constexpr auto linear_dispatch(X const& x, Case&& c, Cases&&... cs) -> opt_result_t<ReturnType>
-   {
-      if (c.value == x)
-         return invoker<ReturnType>::apply(c.lambda);
-      else
-         return linear_dispatch<ReturnType>( x, std::forward<Cases>(cs)... );
-   }
-}
-
-
-
-
 template <typename Value>
 constexpr auto match2(Value&& x)
 {
    return [x=std::forward<Value>(x)](auto&&... cases)
    {
       using result_t = typename detail::result<decltype(cases.lambda)...>::type;
-      return detail::linear_dispatch<result_t>( x, std::forward<decltype(cases)>(cases)... );
+      return detail::match_linear<result_t>( x, std::forward<decltype(cases)>(cases)... );
    };
 }
 
+
+
+template <typename... Cases>
+constexpr auto make_matcher2(Cases&&... cases)
+{
+   using result_t = typename detail::result<decltype(cases.lambda)...>::type;
+
+   return [=](auto&& x) -> detail::opt_result_t<result_t>
+   {
+      return detail::match_linear<result_t>( x, cases... );
+   };
+}
