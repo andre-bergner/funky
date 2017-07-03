@@ -2,8 +2,6 @@
 
 #include "matcher.hpp"
 
-template <int N>
-using int_ = std::integral_constant<int,N>;
 
 
 void test_tools()
@@ -11,14 +9,14 @@ void test_tools()
    nano_tests::def("has_static_constexpr_value", []
    {
       using namespace detail;
-      ASSERT(  has_static_constexpr_value_v< int_<1337> > );
+      ASSERT(  has_static_constexpr_value_v< val_t<1337> > );
       ASSERT( !has_static_constexpr_value_v< int > );
    });
 
    nano_tests::def("is_constexpr_case", []
    {
       using namespace detail;
-      auto case1 = [](int_<1337>){};
+      auto case1 = [](val_t<1337>){};
       auto case2 = [](int){};
       auto case3 = case_(1337) >>= []{};
       ASSERT_TRUE(  is_constexpr_case_v< decltype(case1) > );
@@ -31,10 +29,9 @@ void test_tools()
 
 int main()
 {
-/*
    nano_tests::def("match on constexpr int using arrow notation", []
    {
-      auto result = match1(2)
+      auto result = match(2)
       (  val<1> >>= []{ return 1337; }
       ,  val<2> >>= []{ return 7357; }
       );
@@ -46,7 +43,7 @@ int main()
 
    nano_tests::def("match on constexpr int using lambda argument", []
    {
-      auto result = match1(2)
+      auto result = match(2)
       (  [] (val_t<1>) { return 1337; }
       ,  [] (val_t<2>) { return 7357; }
       );
@@ -54,7 +51,6 @@ int main()
       ASSERT_FATAL( result );
       ASSERT( 7357 == *result );
    });
-*/
 
    nano_tests::def("match on case_: returns value of correct match", []
    {
@@ -114,15 +110,34 @@ int main()
 
       for (auto n : {1,2,3,4,5,6,7})
          match(n)
-         (  [&](int_<4>){ result.push_back(4); }
-         ,  [&](int_<6>){ result.push_back(6); }
-         ,  [&](int_<1>){ result.push_back(1); }
-         ,  [&](int_<3>){ result.push_back(3); }
-         ,  [&](int_<7>){ result.push_back(7); }
+         (  [&](val_t<4>){ result.push_back(4); }
+         ,  [&](val_t<6>){ result.push_back(6); }
+         ,  [&](val_t<1>){ result.push_back(1); }
+         ,  [&](val_t<3>){ result.push_back(3); }
+         ,  [&](val_t<7>){ result.push_back(7); }
          );
 
       ASSERT( expected == result );
    });
+
+
+/*
+   nano_tests::def("matcher for types should use binary search", []
+   {
+      struct base    { virtual ~base() {} };
+      struct deriv1  {         ~deriv1() {} };
+      struct deriv2  {         ~deriv2() {} };
+
+      auto result = match_type(deriv1{})
+      (  [](deriv1 d){ return 314; }
+      ,  [](deriv2 d){ return 47; }
+      );
+
+      ASSERT( !result );
+   });
+*/
+
+
 
    test_tools();
 

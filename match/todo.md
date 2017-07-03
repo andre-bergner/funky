@@ -1,7 +1,7 @@
 # TODO
 
-* CMakeLists.txt
-* unit tests
+* unit tests for...
+  * correct slection of binary search
 * benchmarks
 * type match
   * fast type id:

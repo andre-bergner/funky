@@ -44,3 +44,6 @@ struct signature< Result ( Args... ) >
    using  argument = typename std::tuple_element< n, std::tuple<Args...> >;
    using  result_type = Result;
 };
+
+template <typename Callable, size_t N >
+using argument_t = typename signature<Callable>::template argument<N>::type;

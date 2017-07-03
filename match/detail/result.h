@@ -60,6 +60,6 @@ namespace detail
 
 
    template <typename Function>
-   using first_arg_t = std::remove_reference_t<typename signature<Function>::template argument<0>::type>;
+   using first_arg_t = std::remove_reference_t<argument_t<Function,0>>;
 
 }

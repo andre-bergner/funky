@@ -9,11 +9,10 @@ set                     ( CMAKE_CXX_STANDARD 17 )
 add_library                ( match INTERFACE )
 target_include_directories ( match INTERFACE . )
 
-#add_executable        ( benchmarks test/benchmark.cpp )
-#target_link_libraries ( benchmarks LINK_PUBLIC match )
+add_executable        ( benchmarks test/benchmarks.cpp )
+target_link_libraries ( benchmarks LINK_PUBLIC match )
 
 add_executable        ( tests test/tests.cpp )
-#add_executable        ( tests matcher.cpp )
 target_link_libraries ( tests LINK_PUBLIC match )
 
 if( CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang" )

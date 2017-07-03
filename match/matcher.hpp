@@ -23,6 +23,8 @@ struct match_pair;
 // • value     / val
 // • condition / cond
 
+// runtime (non-constexpr) values
+
 template <typename Value>
 struct case_t
 {
@@ -32,6 +34,17 @@ struct case_t
 template <typename Value>
 auto case_(Value&& x) -> case_t<Value>
 { return {std::forward<Value>(x)}; }
+
+
+// compiletime (constexpr) values
+
+template <auto N>
+using val_t = std::integral_constant<decltype(N),N>;
+
+template <auto N>
+inline constexpr auto val = val_t<N>{};
+
+
 
 
 template <typename Value, typename Lambda>
@@ -46,6 +59,14 @@ template <typename Value, typename Lambda>
 auto operator >>= (case_t<Value>&& c, Lambda&& lambda) -> match_pair<Value,Lambda>
 {
    return { std::move(c.value), std::forward<Lambda>(lambda) };
+}
+
+
+template <auto Value, typename Lambda>
+auto operator >>= (val_t<Value>, Lambda&& lambda)
+{
+   //return { std::move(c.value), std::forward<Lambda>(lambda) };
+   return [lambda](val_t<Value>) -> decltype(auto) { return lambda(); };
 }
 
 
@@ -153,5 +174,41 @@ constexpr auto match(Value&& x)
       constexpr bool all_cases_are_constexpr = (is_constexpr_case_v<decltype(cases)> && ...);
       using all_cases_are_constexpr_t = std::integral_constant<bool, all_cases_are_constexpr>;
       return dispatch_match( all_cases_are_constexpr_t{}, x, std::forward<decltype(cases)>(cases)... );
+   };
+}
+
+
+
+namespace detail
+{
+   size_t get_next_id()
+   {
+      static size_t id_counter = 0;
+      return id_counter++;
+   }
+
+   template <typename T>
+   struct type_id { static const size_t id; };
+
+   template <typename T>
+   const size_t type_id<T>::id = get_next_id();
+}
+
+
+template <typename Value>
+constexpr auto match_type(Value&& x)
+{
+   return [x](auto&&... type_cases)
+   {
+      auto wrap = [](auto&& l)
+      {
+         return [l]( detail::type_id<detail::first_arg_t<decltype(l)>> ){
+            return [l](auto&& x){      // <-- how to get x  back??
+               return l(x);
+            };
+         };
+      };
+
+      return match(std::move(x))( wrap(std::forward<decltype(type_cases)>(type_cases))... );
    };
 }
