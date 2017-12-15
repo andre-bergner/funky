@@ -4,10 +4,14 @@
 #include <variant>
 #include <string_view>
 #include <vector>
+#include <map>
 #include <memory>
 
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;  // seems to be a bit broken on clang
+
+template <class... Fs>
+auto overload(Fs&&... fs) { return overloaded<Fs...>{ std::forward<Fs>(fs)...}; }
 
  
 // Value = bool | int | double | string | list<Value> | map<string, Value>
@@ -20,8 +24,9 @@ class Value
    // * immutable design
    // * use arena allocators
 
-   using key_value_t = std::pair<std::string, std::shared_ptr<Value>>;
-   using map_t = std::vector<key_value_t>;
+   // using key_value_t = std::pair<std::string, std::shared_ptr<Value>>;
+   // using map_t = std::vector<key_value_t>;
+   using map_t = std::map<std::string, std::shared_ptr<Value>, std::less<>>;
 
    template <typename T>
    static constexpr bool is_core_value
@@ -52,7 +57,7 @@ public:
    :  value_{[&]{
          map_t values;
          for (auto const& x : xs)
-            values.emplace_back(std::move(x.first), std::make_shared<Value>(std::move(x.second)) );
+            values.emplace(std::move(x.first), std::make_shared<Value>(std::move(x.second)) );
          return values;
       }()}
    {}
@@ -71,13 +76,21 @@ public:
    // Value(Xs... xs)
 
 
+   template <typename... Visitors>
+   auto visit(Visitors&&... vs)
+   {
+      return std::visit(overload(std::forward<Visitors>(vs)...), value_);
+      //return std::visit(overload(std::forward<Visitors>(vs)..., [](...){ throw wrong_value{} }), value_);
+   }
+
+
    Value operator[](std::string_view key)
    {
       return std::visit(overloaded
       {  [this](auto const&) -> Value { return {}; }
       ,  [this, &key](map_t const& map) -> Value {
-            for (auto const& x : map)
-               if (x.first == key) return *(x.second);
+            if (auto it = map.find(key); it != map.end())
+               return *(it->second);
             return {};
          }
       }, value_);

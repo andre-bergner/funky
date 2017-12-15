@@ -25,7 +25,7 @@ int main()
    Value single_key_value{ { "the answer", 42 } };
    Value single_list{ 1, 2.01, "three" };
 
-   Value vt
+   Value value
    {  { "a double", 3.14 }
    ,  { "a string", "hello" }
    ,  { "nothing", nullptr }
@@ -38,6 +38,7 @@ int main()
          }
       }
    };
+
 
    // Syntactic Sugar
    Value sugar
@@ -53,10 +54,16 @@ int main()
       }
    };
 
-   std::cout << vt << std::endl;
+   std::cout << value << std::endl;
    {
       std::cout << "------- [] ---------" << std::endl;
-      std::cout << vt["a double"] << std::endl;
-      std::cout << vt["wrong index"] << std::endl;
+      std::cout << value["a double"] << std::endl;
+      std::cout << value["wrong index"] << std::endl;
+
+      value["a double"].visit
+      (  [](double x){ std::cout << x << std::endl; }
+      ,  [](auto const&){ std::cout << "not a double" << std::endl; }
+      );
+
    }
 }
