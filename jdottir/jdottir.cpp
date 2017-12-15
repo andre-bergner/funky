@@ -1,5 +1,6 @@
 #include <iostream>
 #include "jdottir.hpp"
+#include "parser.hpp"
 
 
 int main()
@@ -64,6 +65,28 @@ int main()
       (  [](double x){ std::cout << x << std::endl; }
       ,  [](auto const&){ std::cout << "not a double" << std::endl; }
       );
+   }
 
+
+
+   std::cout << "-------------------------" << std::endl;
+   std::cout << "PARSING TEST" << std::endl;
+   std::cout << "-------------------------" << std::endl;
+
+   try {
+      parse(value, map
+         (  "a bool"_key          >> [&](bool b)    { std::cout << "a bool: " << b << std::endl; }
+         ,  "a double"_key        >> [&](double x)  { }
+         ,  "homogen. array"_key  >> [&](std::vector<int> xs)  { }
+         ,  "heteroge. array"_key >> [&](std::tuple<int,float,bool,std::string> t) {  }
+         ,  "another tree"_key >> map
+            (  "Elite"_key >> [&](int x)         {  }
+            ,  "key"_key   >> [&](std::string x) {  }
+            )
+         )
+      );
+   }
+   catch (std::runtime_error const& e) {
+      std::cout << e.what() << std::endl;
    }
 }

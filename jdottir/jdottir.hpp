@@ -1,3 +1,5 @@
+#pragma once
+
 #include <ostream>
 #include <string>
 #include <initializer_list>
@@ -75,16 +77,20 @@ public:
    // template <typename... Xs, enable_if_t< is_same<Xs...> >>
    // Value(Xs... xs)
 
+   template <typename T>
+   bool holds_alternative() const
+   {
+      return std::holds_alternative<T>(value_);
+   }
 
    template <typename... Visitors>
-   auto visit(Visitors&&... vs)
+   auto visit(Visitors&&... vs) const
    {
       return std::visit(overload(std::forward<Visitors>(vs)...), value_);
-      //return std::visit(overload(std::forward<Visitors>(vs)..., [](...){ throw wrong_value{} }), value_);
    }
 
 
-   Value operator[](std::string_view key)
+   Value operator[](std::string_view key) const
    {
       return std::visit(overloaded
       {  [this](auto const&) -> Value { return {}; }
@@ -149,5 +155,4 @@ struct Key {
 
 auto operator>>( Key k, Value x) { return std::make_pair(k.value, std::move(x)); }
 Key operator""_k (const char* s, std::size_t n) { return { std::string(s,s+n) }; }
-
 
