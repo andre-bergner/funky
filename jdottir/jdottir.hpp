@@ -2,6 +2,8 @@
 #include <string>
 #include <initializer_list>
 #include <variant>
+#include <optional>
+#include <string_view>
 #include <vector>
 #include <memory>
 
@@ -18,8 +20,20 @@ class Value
    using key_value_t = std::pair<std::string, std::shared_ptr<Value>>;
    using map_t = std::vector<key_value_t>;
 
+   template <typename T>
+   static constexpr bool is_core_value
+   =  std::is_convertible_v<T, bool>
+   |  std::is_convertible_v<T, int>
+   |  std::is_convertible_v<T, double>
+   |  std::is_convertible_v<T, std::string>
+   |  std::is_convertible_v<T, std::nullptr_t>
+   ;
+
+   template <bool... bs>
+   static constexpr bool all_of = (bs && ...);
+
 public:
-   Value();
+   Value() {}
 
    Value(bool x)         : value_{x} {}
    Value(int x)          : value_{x} {}
@@ -40,7 +54,8 @@ public:
       }()}
    {}
 
-   template <typename... Xs>  // enable_if_t< is_convertible_to<Value,Xs>... >
+   template <typename... Xs, typename = std::enable_if_t<all_of<is_core_value<Xs>...> >>
+   //template <typename... Xs>
    Value(Xs... xs)
    :  value_{[&]{
          std::vector<Value> values;
@@ -54,16 +69,31 @@ public:
    // Value(Xs... xs)
 
 
+   std::optional<Value> operator[](std::string_view key)
+   {
+      using result_t = std::optional<Value>;
+      return std::visit(overloaded
+      {  [this](auto const&) -> result_t { return {}; }
+      ,  [this, &key](map_t const& map) -> result_t {
+            for (auto const& x : map)
+               if (x.first == key) return *(x.second);
+            return {};
+         }
+      }, value_);
+   }
+
+
    friend std::ostream& operator<<(std::ostream& os, Value const& x)
    {
       std::visit(overloaded
       {  [&os](auto const& arg){ os << arg; }
-      ,  [&os](std::nullptr_t){ os << "NULL"; }
+      ,  [&os](std::string const& s){ os << '"' << s << '"'; }
+      ,  [&os](std::nullptr_t){ os << "null"; }
       //,  [&os](key_value_t const& p){ os << p.first << ": " << *(p.second); }
       ,  [&os](map_t const& xs){
             os << "{";
             for (auto const& x : xs)
-               os << x.first << ": " << *(x.second) << std::endl;
+               os << '"' << x.first << "\": " << *(x.second) << std::endl;
             os << "}" << std::endl;
          }
       ,  [&os](std::vector<Value> const& xs){
@@ -101,18 +131,6 @@ struct Key {
    {
       return std::make_pair(value, Value{std::forward<Args>(args)...});
    }
-   /*
-   template <typename X>
-   auto operator()(X&& x)
-   {
-      return std::make_pair(value, Value(std::forward<X>(x)));
-   }*/
-
-   auto operator()(std::initializer_list<Value> xs)
-   {
-      return std::make_pair(value, Value(std::move(xs)));
-   }
-
 };
 
 auto operator>>( Key k, Value x) { return std::make_pair(k.value, std::move(x)); }

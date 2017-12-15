@@ -1,11 +1,27 @@
-#include "jdottir.hpp"
 #include <iostream>
+#include "jdottir.hpp"
 
 
 int main()
 {
    std::cout << std::boolalpha;
 
+   {
+      std::cout << "------- default ---------" << std::endl;
+      Value v;
+      std::cout << v << std::endl;
+   }
+
+   {  // basic copy
+      std::cout << "------- basic copy ---------" << std::endl;
+
+      Value v1{ 1337 };
+      auto v2 = v1;
+      std::cout << v1 << std::endl;
+      std::cout << v2 << std::endl;
+   }
+
+   std::cout << "------- complex tree ---------" << std::endl;
    //Value vt0{ "homogen. array", {1, 2, 3}}; //  does not compile, yet
    Value single_key_value{ { "the answer", 42 } };
    Value single_list{ 1, 2.01, "three" };
@@ -39,6 +55,8 @@ int main()
    };
 
    std::cout << vt << std::endl;
-
-   auto vt2 = vt;
+   {
+      std::cout << "------- [] ---------" << std::endl;
+      std::cout << *vt["a double"] << std::endl;
+   }
 }
