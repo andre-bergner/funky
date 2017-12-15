@@ -22,7 +22,6 @@ int main()
    }
 
    std::cout << "------- complex tree ---------" << std::endl;
-   //Value vt0{ "homogen. array", {1, 2, 3}}; //  does not compile, yet
    Value single_key_value{ { "the answer", 42 } };
    Value single_list{ 1, 2.01, "three" };
 

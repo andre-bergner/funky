@@ -14,7 +14,11 @@ template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 class Value
 {
-   // TODO: use arena allocators
+   // TODO
+   // * find solution for index access by reference
+   // * structural sharing
+   // * immutable design
+   // * use arena allocators
 
    using key_value_t = std::pair<std::string, std::shared_ptr<Value>>;
    using map_t = std::vector<key_value_t>;
@@ -46,7 +50,6 @@ public:
 
    Value(std::initializer_list<std::pair<std::string,Value>> xs)
    :  value_{[&]{
-         //std::vector<Value> values;
          map_t values;
          for (auto const& x : xs)
             values.emplace_back(std::move(x.first), std::make_shared<Value>(std::move(x.second)) );
@@ -55,7 +58,6 @@ public:
    {}
 
    template <typename... Xs, typename = std::enable_if_t<all_of<is_core_value<Xs>...> >>
-   //template <typename... Xs>
    Value(Xs... xs)
    :  value_{[&]{
          std::vector<Value> values;
@@ -89,7 +91,6 @@ public:
       ,  [&os](none_t const& s){ os << "<>"; }
       ,  [&os](std::string const& s){ os << '"' << s << '"'; }
       ,  [&os](std::nullptr_t){ os << "null"; }
-      //,  [&os](key_value_t const& p){ os << p.first << ": " << *(p.second); }
       ,  [&os](map_t const& xs){
             os << "{";
             for (auto const& x : xs)
