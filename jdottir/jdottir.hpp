@@ -2,7 +2,6 @@
 #include <string>
 #include <initializer_list>
 #include <variant>
-#include <optional>
 #include <string_view>
 #include <vector>
 #include <memory>
@@ -33,16 +32,17 @@ class Value
    static constexpr bool all_of = (bs && ...);
 
 public:
-   Value() {}
 
+   struct none_t {};
+   static constexpr none_t none = {};
+
+   Value()               : value_{none} {}
    Value(bool x)         : value_{x} {}
    Value(int x)          : value_{x} {}
    Value(double x)       : value_{x} {}
    Value(std::string x)  : value_{x} {}
    Value(const char* x)  : value_{std::string(x)} {}
    Value(std::nullptr_t) : value_{nullptr} {}
-
-public:
 
    Value(std::initializer_list<std::pair<std::string,Value>> xs)
    :  value_{[&]{
@@ -69,12 +69,11 @@ public:
    // Value(Xs... xs)
 
 
-   std::optional<Value> operator[](std::string_view key)
+   Value operator[](std::string_view key)
    {
-      using result_t = std::optional<Value>;
       return std::visit(overloaded
-      {  [this](auto const&) -> result_t { return {}; }
-      ,  [this, &key](map_t const& map) -> result_t {
+      {  [this](auto const&) -> Value { return {}; }
+      ,  [this, &key](map_t const& map) -> Value {
             for (auto const& x : map)
                if (x.first == key) return *(x.second);
             return {};
@@ -87,6 +86,7 @@ public:
    {
       std::visit(overloaded
       {  [&os](auto const& arg){ os << arg; }
+      ,  [&os](none_t const& s){ os << "<>"; }
       ,  [&os](std::string const& s){ os << '"' << s << '"'; }
       ,  [&os](std::nullptr_t){ os << "null"; }
       //,  [&os](key_value_t const& p){ os << p.first << ": " << *(p.second); }
@@ -108,9 +108,9 @@ public:
 
 private:
 
-
    using value_t = std::variant
-   <  std::nullptr_t
+   <  none_t
+   ,  std::nullptr_t
    ,  bool
    ,  int
    ,  double

@@ -57,6 +57,7 @@ int main()
    std::cout << vt << std::endl;
    {
       std::cout << "------- [] ---------" << std::endl;
-      std::cout << *vt["a double"] << std::endl;
+      std::cout << vt["a double"] << std::endl;
+      std::cout << vt["wrong index"] << std::endl;
    }
 }
