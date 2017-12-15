@@ -2,6 +2,7 @@
 //    Copyright 2015 André Bergner. Distributed under the Apache Software License, Version 2.0.
 //     (See accompanying file LICENSE or copy at http://www.apache.org/licenses/LICENSE-2.0)
 //      --------------------------------------------------------------------------------------------
+#pragma once
 
 #include <tuple>
 #include <type_traits>
