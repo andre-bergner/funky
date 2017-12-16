@@ -75,13 +75,13 @@ int main()
 
    try {
       parse(value, map
-         (  "a bool"_key          >> [&](bool b)    { std::cout << "a bool: " << b << std::endl; }
-         ,  "a double"_key        >> [&](double x)  { }
-         ,  "homogen. array"_key  >> [&](std::vector<int> xs)  { }
-         ,  "heteroge. array"_key >> [&](std::tuple<int,float,bool,std::string> t) {  }
+         (  "a bool"_key          >> [&](bool x)    { std::cout << "bool: " << x << std::endl; }
+         ,  "a double"_key        >> [&](double x)  { std::cout << "double: " << x << std::endl; }
+         //,  "homogen. array"_key  >> [&](std::vector<int> xs)  { }
+         //,  "heteroge. array"_key >> [&](std::tuple<int,float,bool,std::string> t) {  }
          ,  "another tree"_key >> map
-            (  "Elite"_key >> [&](int x)         {  }
-            ,  "key"_key   >> [&](std::string x) {  }
+            (  "Elite"_key >> [&](int x)         {  std::cout << "  elite: " << x << std::endl;  }
+            ,  "key"_key   >> [&](std::string x) {  std::cout << "  key: " << x << std::endl;  }
             )
          )
       );
