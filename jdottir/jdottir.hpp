@@ -44,7 +44,7 @@ class Value
 
 public:
 
-   struct none_t {};
+   struct none_t : std::monostate {};
    static constexpr none_t none = {};
 
    Value()               : value_{none} {}
@@ -76,6 +76,9 @@ public:
    // efficient specialization for homogenuous container
    // template <typename... Xs, enable_if_t< is_same<Xs...> >>
    // Value(Xs... xs)
+
+   bool operator==(Value const& that) const { return this->value_ == that.value_; }
+   bool operator!=(Value const& that) const { return this->value_ != that.value_; }
 
    template <typename T>
    bool holds_alternative() const
@@ -141,6 +144,25 @@ private:
 
    value_t  value_;
 };
+
+
+template <typename X>
+bool operator==(Value const& v, X const& rhs)
+{
+   return v.visit
+   (  [&rhs] (X const& lhs) { return lhs == rhs; }
+   ,  []     (auto const&)  { return false; }
+   );
+}
+
+template <typename X>
+bool operator!=(Value const& v, X const& rhs) { return !(v == rhs); }
+
+template <typename X>
+bool operator==(X const& lhs, Value const& v) { return v == lhs; }
+
+template <typename X>
+bool operator!=(X const& lhs, Value const& v) { return v != lhs; }
 
 
 struct Key {

@@ -65,6 +65,30 @@ int main()
       (  [](double x){ std::cout << x << std::endl; }
       ,  [](auto const&){ std::cout << "not a double" << std::endl; }
       );
+
+      assert( value == value );
+      assert( !(value != value) );
+
+      if (value["a double"] == 3.14)
+         std::cout << "value[\"a double\"] == 3.14  ✔" << std::endl;
+      else
+         std::cout << "value[\"a double\"] == 3.14  ✗" << std::endl;
+
+      if (3.14 != value["a double"])
+         std::cout << "value[\"a double\"] != 3.14  ✔" << std::endl;
+      else
+         std::cout << "value[\"a double\"] != 3.14  ✗" << std::endl;
+
+      if (value["a double"] == "hello")
+         std::cout << "value[\"a double\"] == \"hello\"  ✔" << std::endl;
+      else
+         std::cout << "value[\"a double\"] == \"hello\"  ✗" << std::endl;
+
+      if ("hello" != value["a double"])
+         std::cout << "value[\"a double\"] != \"hello\"  ✔" << std::endl;
+      else
+         std::cout << "value[\"a double\"] != \"hello\"  ✗" << std::endl;
+
    }
 
 
