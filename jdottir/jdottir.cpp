@@ -92,6 +92,17 @@ int main()
    }
 
 
+   std::cout << "-------------------------" << std::endl;
+   std::cout << "ASSIGNMENT TEST" << std::endl;
+   std::cout << "-------------------------" << std::endl;
+
+   auto a_double = std::as_const(value)["a double"];
+   std::cout << value["a double"] << std::endl;
+   std::cout << a_double << std::endl;
+   value["a double"] = 13.37;
+   a_double = 42.1;
+   std::cout << value["a double"] << std::endl;
+   std::cout << a_double << std::endl;
 
    std::cout << "-------------------------" << std::endl;
    std::cout << "PARSING TEST" << std::endl;

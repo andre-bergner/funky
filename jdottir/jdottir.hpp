@@ -21,14 +21,14 @@ auto overload(Fs&&... fs) { return overloaded<Fs...>{ std::forward<Fs>(fs)...}; 
 class Value
 {
    // TODO
-   // * find solution for index access by reference
    // * structural sharing
    // * immutable design
    // * use arena allocators
 
    // using key_value_t = std::pair<std::string, std::shared_ptr<Value>>;
    // using map_t = std::vector<key_value_t>;
-   using map_t = std::map<std::string, std::shared_ptr<Value>, std::less<>>;
+   //using map_t = std::map<std::string, std::shared_ptr<Value>, std::less<>>;
+   using map_t = std::map<std::string, Value, std::less<>>;
 
    template <typename T>
    static constexpr bool is_core_value
@@ -55,11 +55,16 @@ public:
    Value(const char* x)  : value_{std::string(x)} {}
    Value(std::nullptr_t) : value_{nullptr} {}
 
+private:
+   Value(Value* pv) : value_{pv} {}
+
+public:
    Value(std::initializer_list<std::pair<std::string,Value>> xs)
    :  value_{[&]{
          map_t values;
          for (auto const& x : xs)
-            values.emplace(std::move(x.first), std::make_shared<Value>(std::move(x.second)) );
+            //values.emplace(std::move(x.first), std::make_shared<Value>(std::move(x.second)) );
+            values.emplace(std::move(x.first), std::move(x.second) );
          return values;
       }()}
    {}
@@ -97,26 +102,53 @@ public:
    {
       return std::visit(overloaded
       {  [this](auto const&) -> Value { return {}; }
+      ,  [this, &key](Value* p) -> Value {
+            return (*p)[key];
+         }
       ,  [this, &key](map_t const& map) -> Value {
             if (auto it = map.find(key); it != map.end())
-               return *(it->second);
+               return it->second;
             return {};
          }
       }, value_);
    }
 
+   Value operator[](std::string_view key) // rvalue version for reference types:  &&
+   {
+      return std::visit(overloaded
+      {  [this](auto const&) -> Value { return {}; }
+      ,  [this, &key](Value* p) -> Value {
+            return (*p)[key];
+         }
+      ,  [this, &key](map_t& map) -> Value {
+            if (auto it = map.find(key); it != map.end())
+               return &(it->second);
+            return {};
+         }
+      }, value_);
+   }
+
+   Value& operator=(Value that)
+   {
+      value_t& v = (std::holds_alternative<Value*>(value_))
+                 ? std::get<Value*>(value_)->value_
+                 : value_;
+      v = std::move(that.value_);
+      return *this;
+   }
 
    friend std::ostream& operator<<(std::ostream& os, Value const& x)
    {
       std::visit(overloaded
       {  [&os](auto const& arg){ os << arg; }
       ,  [&os](none_t const& s){ os << "<>"; }
+      ,  [&os](Value* p){ os << *p; }
       ,  [&os](std::string const& s){ os << '"' << s << '"'; }
       ,  [&os](std::nullptr_t){ os << "null"; }
       ,  [&os](map_t const& xs){
             os << "{";
             for (auto const& x : xs)
-               os << '"' << x.first << "\": " << *(x.second) << std::endl;
+               os << '"' << x.first << "\": " << (x.second) << std::endl;
             os << "}" << std::endl;
          }
       ,  [&os](std::vector<Value> const& xs){
@@ -133,6 +165,7 @@ private:
 
    using value_t = std::variant
    <  none_t
+   ,  Value*
    ,  std::nullptr_t
    ,  bool
    ,  int
