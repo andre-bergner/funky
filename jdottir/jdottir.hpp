@@ -21,12 +21,14 @@ auto overload(Fs&&... fs) { return overloaded<Fs...>{ std::forward<Fs>(fs)...}; 
 class Value
 {
    // TODO
+   // * need dedicated RevValue object:
+   //    * replaces whole tree when op=() && is called
+   //    * structurals shares otherwise
+   // * mutable view vs immutable view -> obj[key] will behave differently
    // * structural sharing
    // * immutable design
    // * use arena allocators
 
-   // using key_value_t = std::pair<std::string, std::shared_ptr<Value>>;
-   // using map_t = std::vector<key_value_t>;
    //using map_t = std::map<std::string, std::shared_ptr<Value>, std::less<>>;
    using map_t = std::map<std::string, Value, std::less<>>;
 
@@ -54,9 +56,6 @@ public:
    Value(std::string x)  : value_{x} {}
    Value(const char* x)  : value_{std::string(x)} {}
    Value(std::nullptr_t) : value_{nullptr} {}
-
-private:
-   Value(Value* pv) : value_{pv} {}
 
 public:
    Value(std::initializer_list<std::pair<std::string,Value>> xs)
@@ -97,43 +96,42 @@ public:
       return std::visit(overload(std::forward<Visitors>(vs)...), value_);
    }
 
-
-   Value operator[](std::string_view key) const
+/*
+   Value const& operator[](std::string_view key) const
    {
       return std::visit(overloaded
-      {  [this](auto const&) -> Value { return {}; }
-      ,  [this, &key](Value* p) -> Value {
-            return (*p)[key];
+      {  [this](auto const&) -> Value const& { throw 1337; }
+      ,  [this, &key](map_t const& map) -> Value const& {
+            if (auto it = map.find(key); it != map.end())
+               return *it->second;     // copies value
+            throw 1337;
          }
-      ,  [this, &key](map_t const& map) -> Value {
+      }, value_);
+   }
+*/
+
+   Value& operator[](std::string_view key) // rvalue version for reference types:  &&
+   {
+      return std::visit(overloaded
+      {  [this](auto const&) -> Value& { throw 1337; }
+      ,  [this, &key](map_t& map) -> Value& {
             if (auto it = map.find(key); it != map.end())
                return it->second;
-            return {};
+            return map[std::string(key)] = Value{};
          }
       }, value_);
    }
 
-   Value operator[](std::string_view key) // rvalue version for reference types:  &&
+
+   Value& operator=(Value that) &&
    {
-      return std::visit(overloaded
-      {  [this](auto const&) -> Value { return {}; }
-      ,  [this, &key](Value* p) -> Value {
-            return (*p)[key];
-         }
-      ,  [this, &key](map_t& map) -> Value {
-            if (auto it = map.find(key); it != map.end())
-               return &(it->second);
-            return {};
-         }
-      }, value_);
+      this->value_ = std::move(that.value_);
+      return *this;
    }
 
-   Value& operator=(Value that)
+   Value& operator=(Value that) &
    {
-      value_t& v = (std::holds_alternative<Value*>(value_))
-                 ? std::get<Value*>(value_)->value_
-                 : value_;
-      v = std::move(that.value_);
+      this->value_ = std::move(that.value_);
       return *this;
    }
 
@@ -142,13 +140,12 @@ public:
       std::visit(overloaded
       {  [&os](auto const& arg){ os << arg; }
       ,  [&os](none_t const& s){ os << "<>"; }
-      ,  [&os](Value* p){ os << *p; }
       ,  [&os](std::string const& s){ os << '"' << s << '"'; }
       ,  [&os](std::nullptr_t){ os << "null"; }
       ,  [&os](map_t const& xs){
             os << "{";
             for (auto const& x : xs)
-               os << '"' << x.first << "\": " << (x.second) << std::endl;
+               os << '"' << x.first << "\": " << x.second << std::endl;
             os << "}" << std::endl;
          }
       ,  [&os](std::vector<Value> const& xs){
@@ -165,7 +162,6 @@ private:
 
    using value_t = std::variant
    <  none_t
-   ,  Value*
    ,  std::nullptr_t
    ,  bool
    ,  int
